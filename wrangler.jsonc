@@ -1,0 +1,11 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "seatsure",
+  "compatibility_date": "2026-10-09",
+  // Static site only: Cloudflare serves the Vite build, and unknown paths
+  // (/bookings, /receipt/...) fall back to index.html for the React router.
+  "assets": {
+    "directory": "./dist/",
+    "not_found_handling": "single-page-application"
+  }
+}
