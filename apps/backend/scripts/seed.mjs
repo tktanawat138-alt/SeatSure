@@ -6,7 +6,7 @@ const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 if (!url || !serviceKey) {
   console.error(
     'Missing VITE_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY. ' +
-      'Local: run `npm run db:env`. Cloud: fill them in .env.production.local.',
+      'Local: run `task up`. Cloud: fill them in .env.production.local.',
   )
   process.exit(1)
 }

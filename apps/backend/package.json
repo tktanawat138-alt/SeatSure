@@ -1,0 +1,14 @@
+{
+  "name": "seatsure-backend",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "env": "node scripts/write-env.mjs",
+    "seed": "node --env-file=../frontend/.env.local scripts/seed.mjs",
+    "cloud:seed": "node --env-file=.env.production.local scripts/seed.mjs"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.117.3"
+  }
+}
