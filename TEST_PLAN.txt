@@ -188,4 +188,67 @@ D. Soak (ภายหลัง): workload ต่ำต่อเนื่อง 3
 4. รัน dependency/secret/SAST scan ใน CI
 5. รัน k6 baseline บน staging ก่อน release ใหญ่ และเก็บผลเทียบรอบก่อน
 
+9. Quality Metrics Dashboard
+ขณะนี้ repository ยังไม่มี CI workflow หรือ dashboard สำหรับ quality metrics
+ให้ทำ dashboard สำหรับทีมพัฒนา/ผู้ประเมิน ไม่ใช่หน้าหนึ่งในแอป SeatSure
+dashboard ต้องแสดงแนวโน้มตาม commit/build และ link ไปยังรายละเอียด test report
+
+รูปแบบเริ่มต้นที่แนะนำ:
+- GitHub Actions รัน test/scan เมื่อเปิด PR และเมื่อ merge เข้า main
+- สร้างไฟล์ผลสรุป `quality-metrics.json` จากผลของแต่ละ tool
+- เก็บ Playwright HTML report, trace, test logs และ k6 summary เป็น CI artifacts
+- แสดง summary ใน GitHub Actions Summary ก่อน แล้วค่อยทำหน้า static dashboard
+  (เช่น GitHub Pages) เมื่อมี CI และ repository พร้อมใช้งาน
+- อย่า commit ผล test แบบเปลี่ยนทุกครั้งลง source tree และอย่าใส่ credentials
+  หรือข้อมูลผู้ใช้จริงใน artifacts
+
+ตัวชี้วัดบน dashboard:
+1. Test health
+   - จำนวนผ่าน/ล้มเหลว/ถูก skip แยก Unit, Integration, E2E
+   - Pass rate = passed / (passed + failed) * 100
+   - ระยะเวลารันรวมและระยะเวลาแยก suite
+   - Flaky rate = test ที่ผ่านหลัง retry / test ที่มี retry ทั้งหมด
+2. Coverage ของ workflow
+   - workflow ที่มี E2E เทียบกับ workflow หลักที่ตกลงไว้
+   - แสดงรายการ workflow A/B ในหัวข้อ 5 พร้อมสถานะ Not started/In progress/Passing
+   - ไม่ใช้ line coverage เป็นตัวแทนว่าทดสอบ business flow ครบแล้ว
+3. Performance (แสดงเมื่อมี k6/JMeter result)
+   - p50/p95/p99 latency, throughput, error rate และจำนวน virtual users
+   - เทียบกับ baseline และ threshold ที่กำหนดในหัวข้อ 6
+   - แสดง environment/commit เสมอ เพราะผล local กับ staging เทียบตรง ๆ ไม่ได้
+4. Security
+   - จำนวน Critical/High/Medium/Low แยก dependency, SAST, DAST, secret scan
+   - จำนวน finding ที่เปิดอยู่และอายุของ finding ที่เกิน SLA
+   - แสดง scanner, version, วันที่ และ scope เพื่อให้เทียบผลได้
+5. Release signal
+   - สรุป PASS/FAIL จาก required checks ของ commit ล่าสุด
+   - PASS ได้เมื่อ required tests ผ่านและไม่มี Critical/High ที่ยังไม่ triage
+   - metrics ที่ไม่มีข้อมูลให้แสดง N/A ห้ามแสดงเป็น 0 หรือ PASS
+
+ไฟล์ผลลัพธ์มาตรฐานที่ควรกำหนดเมื่อเริ่มทำ CI:
+  generated_at, commit_sha, branch, environment,
+  test_suite, passed, failed, skipped, duration_seconds,
+  performance_p95_ms, performance_error_rate, virtual_users,
+  security_critical, security_high, security_medium, security_low
+ทุก field ที่ไม่เกี่ยวกับ run นั้นให้เป็น null/N/A และเก็บ raw report ไว้เป็น artifact
+
+ขั้นตอนทำงาน:
+1. เพิ่ม GitHub Actions workflow ให้รัน unit, integration และ E2E บน local
+   Supabase/test data; เริ่มจาก PR ไม่ยิง test ไป Cloud production
+2. ให้แต่ละ suite ส่งออกผล machine-readable และรวมเป็น quality-metrics.json
+3. ตั้ง retention ของ artifacts และใส่ commit SHA เพื่อ trace กลับได้
+4. เพิ่ม dashboard summary ใน PR/Actions Summary ก่อน
+5. หลังเก็บผลได้ต่อเนื่อง ค่อยสร้าง trend chart บน GitHub Pages หรือเชื่อม Grafana
+   (Grafana เหมาะเมื่อมีผล performance ต่อเนื่องและมี time-series storage)
+6. ทบทวน threshold หลังมี baseline อย่างน้อยหลายรอบ อย่าตั้ง threshold จากการเดา
+
+นิยามการนำเสนอ:
+- Dashboard แสดงสถานะและแนวโน้ม; รายละเอียดกรณี fail อยู่ใน test report/trace
+- แยก defect ของแอปออกจาก infrastructure/test-environment failure
+- flaky test ต้องขึ้นเตือน ไม่ซ่อนด้วย retry; บันทึกจำนวน retry ไว้เสมอ
+- การเพิ่ม coverage ต้องแสดงตาม workflow/requirement ไม่อ้างเปอร์เซ็นต์รวมอย่างเดียว
+
+สถานะปัจจุบัน: ยังไม่มี GitHub Actions, metrics collector หรือ dashboard ใน repo
+หัวข้อนี้เป็น implementation plan; ต้องทำ CI และ report export ก่อนจึงจะมีข้อมูลจริง
+
 จบเอกสาร
