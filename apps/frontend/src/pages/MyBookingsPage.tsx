@@ -1,42 +1,35 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { CalendarX2, CircleAlert, Clock, ReceiptText } from 'lucide-react'
-import { Link, useNavigate } from 'react-router'
+import { useCallback, useEffect, useState, type ChangeEvent } from 'react'
+import { CalendarX2, CircleAlert, Check, ReceiptText, Upload } from 'lucide-react'
+import { Link } from 'react-router'
 import { toast } from 'sonner'
 import { PageHeader } from '@/components/page-header'
+import { useAuth } from '@/lib/auth'
 import { EmptyState, PageError, PageLoading } from '@/components/page-state'
 import { StatusBadge } from '@/components/status-badge'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { Spinner } from '@/components/ui/spinner'
-import { baht, bookingStatus, countdown, dateTime, errorText, holdIsLive, useNow } from '@/lib/format'
-import { supabase } from '@/lib/supabase'
+import { baht, bookingStatus, dateTime, errorText, holdIsLive, useNow } from '@/lib/format'
+import type { MyBooking } from '@/entities/my-booking'
+import { confirmPaymentProof, submitPaymentProof } from '@/app/deps'
+import { DomainError } from '@/entities/domain-error'
+import { loadMyBookings } from '@/app/deps'
 import * as styles from './MyBookingsPage.styles'
+import { useAutoRefresh } from '@/lib/use-auto-refresh'
 
-async function fetchMyBookings() {
-  const { data, error } = await supabase
-    .from('bookings')
-    .select('*, courses(title, price), payments(*)')
-    .order('created_at', { ascending: false })
-  if (error) throw error
-  return data
-}
-
-type BookingRow = Awaited<ReturnType<typeof fetchMyBookings>>[number]
+type BookingRow = MyBooking
 
 export default function MyBookingsPage() {
-  const navigate = useNavigate()
+  const { session } = useAuth()
   const now = useNow()
   const [bookings, setBookings] = useState<BookingRow[] | null>(null)
-  const [payingId, setPayingId] = useState<string | null>(null)
+  const [uploadingId, setUploadingId] = useState<string | null>(null)
+  const [confirmingId, setConfirmingId] = useState<string | null>(null)
   const [error, setError] = useState('')
-  // One key per booking while this page is open, so a double click or a retry
-  // repeats the same payment request instead of starting a second charge.
-  const paymentKeys = useRef(new Map<string, string>())
 
   const load = useCallback(async () => {
     try {
-      setBookings(await fetchMyBookings())
+      setBookings(await loadMyBookings())
     } catch {
       setError('โหลดรายการจองไม่สำเร็จ ลองโหลดหน้านี้ใหม่')
     }
@@ -45,34 +38,46 @@ export default function MyBookingsPage() {
   useEffect(() => {
     void load()
   }, [load])
+  useAutoRefresh(load, 'bookings', 'payment_proofs', 'payments')
 
-  async function payFor(booking: BookingRow) {
-    let key = paymentKeys.current.get(booking.id)
-    if (!key) {
-      key = crypto.randomUUID()
-      paymentKeys.current.set(booking.id, key)
+  async function uploadProof(booking: BookingRow, event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0]
+    if (!file) return
+    if (!session?.user.id) { toast.error('กรุณาเข้าสู่ระบบใหม่'); return }
+    setUploadingId(booking.id)
+    try {
+      await submitPaymentProof({ userId: session.user.id, bookingId: booking.id, file })
+      toast.success('บันทึกหลักฐานแล้ว กรุณากดยืนยันการชำระเงิน')
+      void load()
+    } catch (cause) {
+      const message = cause instanceof DomainError
+        ? cause.code === 'proof_type_invalid' ? 'เลือกไฟล์ JPG, PNG หรือ WebP' : 'ไฟล์ต้องมีขนาดไม่เกิน 5 MB'
+        : errorText(cause instanceof Error ? cause : { message: 'payment_proof_upload_failed' })
+      toast.error(message)
+    } finally {
+      setUploadingId(null)
+      event.target.value = ''
     }
-    setPayingId(booking.id)
-    setError('')
-    const { data: payment, error } = await supabase.rpc('pay_booking', {
-      p_booking_id: booking.id,
-      p_idempotency_key: key,
-    })
-    setPayingId(null)
-    if (error) {
-      toast.error(errorText(error))
-    } else if (payment.status === 'succeeded') {
-      navigate(`/receipt/${booking.id}`)
-      return
+  }
+
+  async function confirmPayment(booking: BookingRow) {
+    setConfirmingId(booking.id)
+    try {
+      await confirmPaymentProof(booking.id)
+      toast.success('ยืนยันการชำระเงินแล้ว')
+      await load()
+    } catch (cause) {
+      toast.error(errorText(cause instanceof Error ? cause : { message: 'payment_confirmation_failed' }))
+    } finally {
+      setConfirmingId(null)
     }
-    void load()
   }
 
   if (!bookings) return error ? <PageError message={error} /> : <PageLoading />
 
   return (
     <>
-      <PageHeader title="การจองของฉัน" description="ดูสถานะการจอง ชำระเงิน และเปิดใบเสร็จได้จากหน้านี้" />
+      <PageHeader title="การจองของฉัน" description="ดูสถานะการจองและแนบหลักฐานการโอนเงินเข้าบัญชีโรงเรียน" />
 
       {/* The list is already on screen, so a failed refresh is shown above it instead of replacing it. */}
       {error && (
@@ -85,7 +90,7 @@ export default function MyBookingsPage() {
         <EmptyState
           icon={CalendarX2}
           title="ยังไม่มีการจอง"
-          description="เมื่อจองที่นั่งแล้ว รายการจองจะแสดงที่หน้านี้"
+          description="เมื่อลงทะเบียนแล้ว รายการจะปรากฏที่หน้านี้"
         >
           <Button asChild>
             <Link to="/">ดูคอร์สที่เปิดรับ</Link>
@@ -98,17 +103,17 @@ export default function MyBookingsPage() {
               <BookingCard
                 booking={booking}
                 now={now}
-                paying={payingId === booking.id}
-                onPay={() => payFor(booking)}
+                uploading={uploadingId === booking.id}
+                onUpload={(event) => void uploadProof(booking, event)}
+                confirming={confirmingId === booking.id}
+                onConfirm={() => void confirmPayment(booking)}
               />
             </li>
           ))}
         </ul>
       )}
 
-      <p className={styles.footnote()}>
-        การชำระเงินในระบบสาธิตนี้เป็นการจำลอง ไม่มีการตัดเงินจริง
-      </p>
+      <p className={styles.footnote()}>บัญชีธนาคารที่แสดงเป็นข้อมูลตัวอย่างสำหรับสาธิตการโอนเงิน</p>
     </>
   )
 }
@@ -116,13 +121,17 @@ export default function MyBookingsPage() {
 function BookingCard({
   booking,
   now,
-  paying,
-  onPay,
+  uploading,
+  onUpload,
+  confirming,
+  onConfirm,
 }: Readonly<{
   booking: BookingRow
   now: number
-  paying: boolean
-  onPay: () => void
+  uploading: boolean
+  onUpload: (event: ChangeEvent<HTMLInputElement>) => void
+  confirming: boolean
+  onConfirm: () => void
 }>) {
   const status = bookingStatus(booking, now)
   const refund = booking.payments.find((p) => p.status === 'refund_due')
@@ -150,14 +159,20 @@ function BookingCard({
         )}
         {holdIsLive(booking, now) && (
           <div className={styles.payBox()}>
-            <p className={styles.countdown()}>
-              <Clock className={styles.countdownIcon()} aria-hidden />
-              เหลือเวลา {countdown(booking.hold_expires_at, now)} นาที
-            </p>
-            <Button size="lg" disabled={paying} aria-busy={paying} onClick={onPay}>
-              {paying && <Spinner data-icon="inline-start" aria-hidden />}
-              ชำระเงิน {baht(booking.courses.price)}
-            </Button>
+            <div className={styles.transferCard()}>
+              <p className="font-medium">โอน {baht(booking.courses.price)} เข้าบัญชีโรงเรียน (ตัวอย่าง)</p>
+              <p>ธนาคาร: ธนาคารตัวอย่าง</p><p>ชื่อบัญชี: โรงเรียน SeatSure</p><p>เลขที่บัญชี: 123-4-56789-0</p>
+              {booking.payment_proofs.length > 0 && <p className={styles.paidProof()}>แนบหลักฐานแล้ว ยังไม่ได้ยืนยันการชำระเงิน</p>}
+              <label className={styles.uploadLabel()}>
+                <Upload className={styles.uploadIcon()} aria-hidden />{uploading ? 'กำลังอัปโหลด…' : booking.payment_proofs.length ? 'เปลี่ยนรูปหลักฐานการโอน' : 'แนบรูปหลักฐานการโอน'}
+                <input className={styles.fileInput()} type="file" accept="image/jpeg,image/png,image/webp" disabled={uploading || confirming} onChange={onUpload} />
+              </label>
+              {booking.payment_proofs.length > 0 && (
+                <Button className={styles.confirmPayment()} disabled={confirming || uploading} onClick={onConfirm}>
+                  <Check data-icon="inline-start" aria-hidden />{confirming ? 'กำลังยืนยัน…' : 'ยืนยันการชำระเงิน'}
+                </Button>
+              )}
+            </div>
           </div>
         )}
       </CardContent>

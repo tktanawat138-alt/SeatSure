@@ -26,6 +26,8 @@ export interface CourseDraft {
   teacherId: string
   capacity: string
   price: string
+  startsAt: string
+  endsAt: string
 }
 
 const emptyCourse: CourseDraft = {
@@ -34,6 +36,8 @@ const emptyCourse: CourseDraft = {
   teacherId: '',
   capacity: '20',
   price: '0',
+  startsAt: '',
+  endsAt: '',
 }
 
 // A Radix SelectItem cannot have an empty value, so "no teacher" is this in the Select
@@ -61,7 +65,7 @@ export function AddCourseDialog(props: Readonly<Props>) {
       <DialogContent className={s.dialog()}>
         <DialogHeader className={s.header()}>
           <DialogTitle className={s.title()}>เพิ่มคอร์ส</DialogTitle>
-          <DialogDescription>คอร์สใหม่จะเปิดรับสมัครทันทีที่เพิ่ม</DialogDescription>
+          <DialogDescription>คอร์สจะส่งให้แอดมินโรงเรียนตรวจอนุมัติก่อนเปิดรับสมัคร</DialogDescription>
         </DialogHeader>
         {/* The form lives only while the dialog is open, so it starts empty every time. */}
         <AddCourseForm {...props} onAdded={() => setOpen(false)} />
@@ -80,6 +84,10 @@ function AddCourseForm({ teachers, busy, onAdd, onAdded }: Readonly<Props & { on
   async function submit(event: SubmitEvent) {
     event.preventDefault()
     setError('')
+    if (new Date(draft.endsAt) <= new Date(draft.startsAt)) {
+      setError('วันและเวลาสิ้นสุดต้องอยู่หลังวันและเวลาเริ่มต้น')
+      return
+    }
     if (await onAdd(draft, setError)) onAdded()
   }
 
@@ -96,7 +104,7 @@ function AddCourseForm({ teachers, busy, onAdd, onAdded }: Readonly<Props & { on
             required
           />
         </Field>
-        <Field>
+        {teachers.length > 1 && <Field>
           <FieldLabel htmlFor={`${id}-teacher`}>ผู้สอน</FieldLabel>
           <Select
             value={draft.teacherId || NO_TEACHER}
@@ -116,7 +124,7 @@ function AddCourseForm({ teachers, busy, onAdd, onAdded }: Readonly<Props & { on
               </SelectGroup>
             </SelectContent>
           </Select>
-        </Field>
+        </Field>}
         <Field>
           <FieldLabel htmlFor={`${id}-description`}>รายละเอียด</FieldLabel>
           <Textarea
@@ -125,6 +133,16 @@ function AddCourseForm({ teachers, busy, onAdd, onAdded }: Readonly<Props & { on
             onChange={(e) => change({ description: e.target.value })}
           />
         </Field>
+        <div className={s.pair()}>
+          <Field>
+            <FieldLabel htmlFor={`${id}-starts`}>เริ่มวันที่และเวลา</FieldLabel>
+            <Input id={`${id}-starts`} type="datetime-local" value={draft.startsAt} onChange={(e) => change({ startsAt: e.target.value })} required />
+          </Field>
+          <Field>
+            <FieldLabel htmlFor={`${id}-ends`}>สิ้นสุดวันที่และเวลา</FieldLabel>
+            <Input id={`${id}-ends`} type="datetime-local" value={draft.endsAt} onChange={(e) => change({ endsAt: e.target.value })} required />
+          </Field>
+        </div>
         <div className={s.pair()}>
           <Field>
             <FieldLabel htmlFor={`${id}-capacity`}>จำนวนรับ (คน)</FieldLabel>

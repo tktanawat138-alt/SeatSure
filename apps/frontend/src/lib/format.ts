@@ -12,8 +12,32 @@ export const baht = (amount: number) => bahtFormat.format(amount)
 export const dateTime = (iso: string) =>
   new Date(iso).toLocaleString('th-TH', { dateStyle: 'medium', timeStyle: 'short' })
 
+export const parentCourseSchedule = (startsAt: string, endsAt: string) => {
+  const starts = new Date(startsAt)
+  const ends = new Date(endsAt)
+  const date = starts.toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' })
+  const timeOptions: Intl.DateTimeFormatOptions = { hour: '2-digit', minute: '2-digit', hour12: false }
+  const startTime = starts.toLocaleTimeString('th-TH', timeOptions)
+  const endTime = ends.toLocaleTimeString('th-TH', timeOptions)
+  return `${date} ${startTime}-${endTime}`
+}
+
+export const courseSchedule = (startsAt: string, endsAt: string) => {
+  const starts = new Date(startsAt)
+  const ends = new Date(endsAt)
+  const date = starts.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+  const timeOptions: Intl.DateTimeFormatOptions = { hour: '2-digit', minute: '2-digit', hour12: false }
+  const startTime = starts.toLocaleTimeString('en-GB', timeOptions)
+  const endTime = ends.toLocaleTimeString('en-GB', timeOptions)
+  return `Date ${date} · Time ${startTime} - ${endTime}`
+}
+
 const errorMessages: Record<string, string> = {
   course_full: 'คอร์สนี้เต็มแล้ว',
+  course_cancelled: 'คอร์สนี้ถูกยกเลิกแล้ว',
+  course_already_cancelled: 'คอร์สนี้ถูกยกเลิกไปแล้ว',
+  cancellation_reason_required: 'กรุณาระบุเหตุผลที่ยกเลิกคอร์ส',
+  admin_required: 'เฉพาะผู้ดูแลระบบเท่านั้นที่ทำรายการนี้ได้',
   registration_closed: 'คอร์สนี้ปิดรับสมัครแล้ว',
   already_booked: 'คุณจองคอร์สนี้ไว้แล้ว ดูได้ที่หน้า "การจองของฉัน"',
   student_name_required: 'กรุณากรอกชื่อผู้เรียน',

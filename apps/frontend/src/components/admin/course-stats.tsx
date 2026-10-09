@@ -13,17 +13,19 @@ interface Stat {
 
 /** Headline numbers for the admin page, worked out from the courses already loaded. */
 export function CourseStats({ courses }: Readonly<{ courses: Course[] }>) {
-  const seatsTaken = courses.reduce((sum, course) => sum + course.seats_taken, 0)
-  const capacity = courses.reduce((sum, course) => sum + course.capacity, 0)
+  const activeCourses = courses.filter((course) => !course.cancelled_at)
+  const cancelled = courses.length - activeCourses.length
+  const seatsTaken = activeCourses.reduce((sum, course) => sum + course.seats_taken, 0)
+  const capacity = activeCourses.reduce((sum, course) => sum + course.capacity, 0)
   const filled = capacity > 0 ? Math.round((seatsTaken / capacity) * 100) : 0
-  const open = courses.filter((course) => course.registration_open).length
-  const overbooked = courses.filter((course) => course.seats_taken > course.capacity).length
+  const open = activeCourses.filter((course) => course.registration_open).length
+  const overbooked = activeCourses.filter((course) => course.seats_taken > course.capacity).length
 
   const stats: Stat[] = [
     {
       label: 'จำนวนคอร์ส',
       value: String(courses.length),
-      hint: 'คอร์สที่มีในระบบ',
+      hint: `ยกเลิกแล้ว ${cancelled} คอร์ส`,
       icon: BookOpen,
     },
     {
@@ -35,7 +37,7 @@ export function CourseStats({ courses }: Readonly<{ courses: Course[] }>) {
     {
       label: 'เปิดรับสมัครอยู่',
       value: String(open),
-      hint: `จาก ${courses.length} คอร์ส`,
+      hint: `จาก ${activeCourses.length} คอร์สที่ยังใช้งาน`,
       icon: DoorOpen,
     },
     {

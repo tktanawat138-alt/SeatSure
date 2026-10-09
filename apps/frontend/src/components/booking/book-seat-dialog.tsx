@@ -47,7 +47,7 @@ export function BookSeatDialog({
           <form className={form()} onSubmit={(event) => onSubmit(event, course)}>
             {/* Right padding keeps a long course title clear of the close button. */}
             <DialogHeader className={header()}>
-              <DialogTitle className={title()}>จองที่นั่ง {course.title}</DialogTitle>
+              <DialogTitle className={title()}>ลงทะเบียน {course.title}</DialogTitle>
               <DialogDescription>
                 {course.teacher_name ? `สอนโดย ${course.teacher_name}` : 'ยังไม่ระบุผู้สอน'} · ค่าเรียน{' '}
                 <span className={price()}>{baht(course.price)}</span>
@@ -68,7 +68,7 @@ export function BookSeatDialog({
 
             <p className={hint()}>
               <Clock className={hintIcon()} aria-hidden />
-              ระบบจะล็อกที่นั่งให้ 10 นาทีเพื่อรอชำระเงิน
+              หลังจอง กรุณาโอนเข้าบัญชีโรงเรียนและแนบรูปหลักฐานจากหน้ารายการจอง
             </p>
 
             {error && (

@@ -1,16 +1,7 @@
-import { supabase, type Course } from '@/lib/supabase'
+import type { CourseRosterRow } from '@/entities/course-roster'
+import type { Course } from '@/entities/course'
 
-export async function fetchRoster(courseId: string) {
-  const { data, error } = await supabase
-    .from('bookings')
-    .select('*, profiles(full_name), payments(*)')
-    .eq('course_id', courseId)
-    .order('created_at')
-  if (error) throw error
-  return data
-}
-
-export type RosterRow = Awaited<ReturnType<typeof fetchRoster>>[number]
+export type RosterRow = CourseRosterRow
 
 /** The roster on screen: `rows` is null until it has loaded, `error` is set when loading failed. */
 export interface RosterView {

@@ -33,6 +33,9 @@ export const courseCard = cva('', {
 })
 export type CourseCardProps = VariantProps<typeof courseCard>
 export const countBadge = cva('tabular-nums')
+export const courseActions = cva('flex flex-col items-end gap-2')
+export const courseSchedule = cva('text-sm text-muted-foreground')
+export const approvalSummary = cva('mb-4 rounded-lg border p-3 text-sm text-muted-foreground')
 export const emptyNote = cva(
   'flex items-center justify-center gap-2 rounded-lg border border-dashed px-4 py-6 text-sm text-muted-foreground',
 )

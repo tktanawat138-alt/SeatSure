@@ -1,29 +1,17 @@
-import { useEffect, useState } from 'react'
 import { Navigate, Route, Routes } from 'react-router'
 import { AppShell } from '@/components/app-shell'
 import { FullPageLoading } from '@/components/page-state'
 import { useAuth } from '@/lib/auth'
-import { supabase, type BookingMode } from '@/lib/supabase'
 import AdminPage from '@/pages/AdminPage'
 import CoursesPage from '@/pages/CoursesPage'
 import LoginPage from '@/pages/LoginPage'
 import MyBookingsPage from '@/pages/MyBookingsPage'
+import PaymentsPage from '@/pages/PaymentsPage'
 import ReceiptPage from '@/pages/ReceiptPage'
 import TeacherPage from '@/pages/TeacherPage'
 
 export default function App() {
   const { session, profile, loading } = useAuth()
-  const [mode, setMode] = useState<BookingMode>('safe')
-
-  const signedIn = Boolean(session && profile)
-  useEffect(() => {
-    if (!signedIn) return
-    supabase
-      .from('app_settings')
-      .select('booking_mode')
-      .single()
-      .then(({ data }) => setMode(data?.booking_mode === 'unsafe' ? 'unsafe' : 'safe'))
-  }, [signedIn])
 
   if (loading) return <FullPageLoading />
   if (!session || !profile) {
@@ -38,14 +26,15 @@ export default function App() {
   }
 
   let home = <CoursesPage />
-  if (profile.role === 'admin') home = <AdminPage mode={mode} onModeChange={setMode} />
+  if (profile.role === 'admin') home = <AdminPage />
   else if (profile.role === 'teacher') home = <TeacherPage />
 
   return (
-    <AppShell profile={profile} mode={mode}>
+    <AppShell profile={profile}>
       <Routes>
         <Route path="/" element={home} />
         {profile.role === 'parent' && <Route path="/bookings" element={<MyBookingsPage />} />}
+        {profile.role === 'admin' && <Route path="/payments" element={<PaymentsPage />} />}
         <Route path="/receipt/:bookingId" element={<ReceiptPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

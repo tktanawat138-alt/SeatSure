@@ -106,6 +106,15 @@ function RosterTableRow({ row, now }: Readonly<{ row: RosterRow; now: number }>)
               </div>
             )
           })}
+          {row.payment_proofs.length > 0 && (
+            <div className={s.proofList()}>
+              {row.payment_proofs.map((proof, index) => proof.signed_url ? (
+                <a key={proof.id} className={s.proofLink()} href={proof.signed_url} target="_blank" rel="noreferrer">
+                  ดูหลักฐานการโอน {index + 1}
+                </a>
+              ) : <span key={proof.id} className={s.unpaid()}>เปิดหลักฐานไม่ได้</span>)}
+            </div>
+          )}
           {problem && <StatusBadge tone="bad">{problem}</StatusBadge>}
         </div>
       </TableCell>

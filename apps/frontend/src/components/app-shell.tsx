@@ -1,10 +1,10 @@
 import type { ReactNode } from 'react'
-import { BookOpen, CalendarCheck, LogOut, Settings, TriangleAlert, Users, type LucideIcon } from 'lucide-react'
+import { Banknote, BookOpen, CalendarCheck, LogOut, Settings, Users, type LucideIcon } from 'lucide-react'
 import { Link, NavLink } from 'react-router'
 import { Logo } from '@/components/logo'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
-import { supabase, type BookingMode, type Profile } from '@/lib/supabase'
+import { supabase, type Profile } from '@/lib/supabase'
 import {
   avatarFallback,
   bar,
@@ -19,9 +19,6 @@ import {
   userName,
   userRole,
   userText,
-  warning,
-  warningIcon,
-  warningText,
 } from './app-shell.styles'
 
 type Role = Profile['role']
@@ -38,17 +35,18 @@ const navItems: Record<Role, { to: string; label: string; icon: LucideIcon }[]> 
     { to: '/bookings', label: 'การจองของฉัน', icon: CalendarCheck },
   ],
   teacher: [{ to: '/', label: 'รายชื่อผู้เรียน', icon: Users }],
-  admin: [{ to: '/', label: 'จัดการคอร์ส', icon: Settings }],
+  admin: [
+    { to: '/', label: 'จัดการคอร์ส', icon: Settings },
+    { to: '/payments', label: 'ระบบชำระเงิน', icon: Banknote },
+  ],
 }
 
-/** The frame around every signed-in page: top bar, demo-mode warning and page container. */
+/** The frame around every signed-in page: top bar and page container. */
 export function AppShell({
   profile,
-  mode,
   children,
 }: Readonly<{
   profile: Profile
-  mode: BookingMode
   children: ReactNode
 }>) {
   return (
@@ -92,15 +90,6 @@ export function AppShell({
           </div>
         </div>
       </header>
-
-      {mode === 'unsafe' && (
-        <div role="alert" className={warning()}>
-          <p className={warningText()}>
-            <TriangleAlert className={warningIcon()} aria-hidden />
-            โหมดสาธิตบั๊กเปิดอยู่: ระบบไม่ล็อกที่นั่งและไม่ตรวจการจ่ายซ้ำ ห้ามใช้รับจองจริง
-          </p>
-        </div>
-      )}
 
       <main className={main()}>{children}</main>
     </div>

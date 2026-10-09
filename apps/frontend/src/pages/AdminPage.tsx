@@ -1,28 +1,29 @@
 import { useCallback, useEffect, useState, type SubmitEvent } from 'react'
 import { BookOpen } from 'lucide-react'
 import { toast } from 'sonner'
-import { AddCourseDialog, type CourseDraft } from '@/components/admin/add-course-dialog'
-import { BookingModeCard } from '@/components/admin/booking-mode-card'
+import { CourseApprovalQueue } from '@/components/admin/course-approval-queue'
+import { CancelCourseDialog } from '@/components/admin/cancel-course-dialog'
 import { CourseStats } from '@/components/admin/course-stats'
 import { CourseTable } from '@/components/admin/course-table'
-import { fetchRoster, type RosterView } from '@/components/admin/roster'
+import { type RosterView } from '@/components/admin/roster'
 import { RosterDialog } from '@/components/admin/roster-dialog'
 import { PageHeader } from '@/components/page-header'
 import { EmptyState, PageError, PageLoading } from '@/components/page-state'
 import { errorText } from '@/lib/format'
 import * as styles from './AdminPage.styles'
-import { fetchCourses, supabase, type BookingMode, type Course, type Profile } from '@/lib/supabase'
+import { fetchCourses, supabase, type Course } from '@/lib/supabase'
+import { useAuth } from '@/lib/auth'
+import { loadCourseRoster } from '@/app/deps'
+import { useAutoRefresh } from '@/lib/use-auto-refresh'
 
 type Change = () => PromiseLike<{ error: { message: string } | null }>
 
-interface Props {
-  mode: BookingMode
-  onModeChange: (mode: BookingMode) => void
-}
-
-export default function AdminPage({ mode, onModeChange }: Readonly<Props>) {
+export default function AdminPage() {
+  const { session } = useAuth()
+  const canApproveCourses = session?.user.email?.toLowerCase() === 'admin01@seatsure.test'
   const [courses, setCourses] = useState<Course[] | null>(null)
-  const [teachers, setTeachers] = useState<Profile[]>([])
+  const [pendingCourses, setPendingCourses] = useState<Course[]>([])
+  const [courseToCancel, setCourseToCancel] = useState<Course | null>(null)
   const [roster, setRoster] = useState<RosterView | null>(null)
   const [rosterOpen, setRosterOpen] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -30,12 +31,13 @@ export default function AdminPage({ mode, onModeChange }: Readonly<Props>) {
 
   const load = useCallback(async () => {
     try {
-      const [courseList, teacherList] = await Promise.all([
+      const [courseList, pendingResult] = await Promise.all([
         fetchCourses(),
-        supabase.from('profiles').select().eq('role', 'teacher').order('full_name'),
+        supabase.from('courses').select('*').eq('approval_status', 'pending').order('created_at'),
       ])
+      if (pendingResult.error) throw pendingResult.error
       setCourses(courseList)
-      setTeachers(teacherList.data ?? [])
+      setPendingCourses((pendingResult.data ?? []).map((c) => ({ ...c, teacher_name: null, seats_taken: 0 })) as Course[])
     } catch {
       setLoadError('โหลดข้อมูลไม่สำเร็จ ลองโหลดหน้านี้ใหม่')
     }
@@ -44,6 +46,7 @@ export default function AdminPage({ mode, onModeChange }: Readonly<Props>) {
   useEffect(() => {
     void load()
   }, [load])
+  useAutoRefresh(load, 'courses', 'bookings', 'payments', 'payment_proofs')
 
   /** Runs one change, reports its error if any, then refreshes the list. */
   async function run(change: Change, reportError: (message: string) => void) {
@@ -63,21 +66,11 @@ export default function AdminPage({ mode, onModeChange }: Readonly<Props>) {
     return succeeded
   }
 
-  /** The add-course form shows its own error, so it passes in where to report it. */
-  async function addCourse(draft: CourseDraft, reportError: (message: string) => void) {
-    const added = await run(
-      () =>
-        supabase.from('courses').insert({
-          title: draft.title.trim(),
-          description: draft.description.trim(),
-          teacher_id: draft.teacherId || null,
-          capacity: Number(draft.capacity),
-          price: Number(draft.price),
-        }),
-      reportError,
+  async function reviewCourse(course: Course, approved: boolean) {
+    await runWithToast(
+      () => supabase.from('courses').update({ approval_status: approved ? 'approved' : 'rejected', registration_open: approved }).eq('id', course.id),
+      approved ? 'อนุมัติคอร์สแล้ว' : 'ปฏิเสธคอร์สแล้ว',
     )
-    if (added) toast.success('เพิ่มคอร์สแล้ว')
-    return added
   }
 
   function saveCapacity(event: SubmitEvent<HTMLFormElement>, course: Course) {
@@ -99,19 +92,29 @@ export default function AdminPage({ mode, onModeChange }: Readonly<Props>) {
     const show = (result: Pick<RosterView, 'rows' | 'error'>) =>
       setRoster((shown) => (shown?.course.id === course.id ? { course, ...result } : shown))
     try {
-      show({ rows: await fetchRoster(course.id), error: '' })
+      show({ rows: await loadCourseRoster(course.id), error: '' })
     } catch {
       show({ rows: null, error: 'โหลดรายชื่อไม่สำเร็จ ลองอีกครั้ง' })
     }
   }
 
-  async function switchMode() {
-    const next: BookingMode = mode === 'safe' ? 'unsafe' : 'safe'
-    const switched = await runWithToast(
-      () => supabase.from('app_settings').update({ booking_mode: next }).eq('id', true),
-      next === 'safe' ? 'กลับเป็นโหมดปกติแล้ว' : 'เปิดโหมดสาธิตบั๊กแล้ว',
-    )
-    if (switched) onModeChange(next)
+  async function cancelCourse(course: Course, reason: string) {
+    setBusy(true)
+    setLoadError('')
+    const { data, error } = await supabase.rpc('cancel_course', {
+      p_course_id: course.id,
+      p_reason: reason,
+    })
+    if (error) {
+      toast.error(errorText(error))
+      setBusy(false)
+      return false
+    }
+    await load()
+    setCourseToCancel(null)
+    toast.success(`ยกเลิกคอร์สแล้ว เพิ่มรายการคืนเงิน ${data ?? 0} รายการ`)
+    setBusy(false)
+    return true
   }
 
   if (!courses) {
@@ -124,14 +127,14 @@ export default function AdminPage({ mode, onModeChange }: Readonly<Props>) {
       <PageHeader
         title="จัดการคอร์ส"
         description="ปรับจำนวนรับ เปิดหรือปิดรับสมัคร และตรวจรายชื่อกับการชำระเงินของแต่ละคอร์ส"
-      >
-        <AddCourseDialog teachers={teachers} busy={busy} onAdd={addCourse} />
-      </PageHeader>
+      />
 
       <div className={styles.stack()}>
         {loadError && <PageError message={loadError} />}
 
         <CourseStats courses={courses} />
+
+        {canApproveCourses && <CourseApprovalQueue courses={pendingCourses} busy={busy} onReview={(course, approved) => void reviewCourse(course, approved)} />}
 
         {courses.length === 0 ? (
           <EmptyState icon={BookOpen} title="ยังไม่มีคอร์ส" description="กดปุ่มเพิ่มคอร์สด้านบนเพื่อสร้างคอร์สแรก" />
@@ -142,13 +145,20 @@ export default function AdminPage({ mode, onModeChange }: Readonly<Props>) {
             onSaveCapacity={saveCapacity}
             onToggleRegistration={toggleRegistration}
             onOpenRoster={openRoster}
+            onCancelCourse={setCourseToCancel}
           />
         )}
 
-        <BookingModeCard mode={mode} busy={busy} onSwitch={switchMode} />
       </div>
 
       <RosterDialog roster={roster} open={rosterOpen} onOpenChange={setRosterOpen} onRetry={openRoster} />
+      <CancelCourseDialog
+        course={courseToCancel}
+        open={courseToCancel !== null}
+        busy={busy}
+        onOpenChange={(open) => { if (!open) setCourseToCancel(null) }}
+        onConfirm={cancelCourse}
+      />
     </>
   )
 }

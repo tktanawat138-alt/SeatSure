@@ -45,3 +45,5 @@ export const paymentState = cva('', {
     received: { true: '', false: 'font-medium text-amber-800' },
   },
 })
+export const proofList = cva('flex flex-col items-start gap-1')
+export const proofLink = cva('text-sm font-medium text-primary underline underline-offset-2')

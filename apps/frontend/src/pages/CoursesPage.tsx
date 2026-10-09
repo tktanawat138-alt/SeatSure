@@ -9,6 +9,7 @@ import { useAuth } from '@/lib/auth'
 import { errorText, holdsSeat } from '@/lib/format'
 import * as styles from './CoursesPage.styles'
 import { fetchCourses, supabase, type Booking, type Course } from '@/lib/supabase'
+import { useAutoRefresh } from '@/lib/use-auto-refresh'
 
 export default function CoursesPage() {
   const { profile } = useAuth()
@@ -39,6 +40,7 @@ export default function CoursesPage() {
   useEffect(() => {
     void load()
   }, [load])
+  useAutoRefresh(load, 'courses', 'bookings')
 
   function openDialog(course: Course) {
     setOpenCourse(course)
@@ -65,15 +67,16 @@ export default function CoursesPage() {
 
   if (!courses) return error ? <PageError message={error} /> : <PageLoading />
 
+  const availableCourses = courses.filter((course) => !course.cancelled_at && course.approval_status === 'approved')
   const now = Date.now()
   return (
     <>
       <PageHeader
         title="คอร์สเรียนเสริม"
-        description="เลือกคอร์สที่สนใจแล้วจองที่นั่ง จากนั้นชำระเงินภายใน 10 นาทีเพื่อยืนยันที่นั่ง"
+        description="เลือกคอร์สที่สนใจเพื่อลงทะเบียน แล้วโอนเงินเข้าบัญชีโรงเรียนและแนบหลักฐานจากหน้าการจองของฉัน"
       />
 
-      {courses.length === 0 ? (
+      {availableCourses.length === 0 ? (
         <EmptyState
           icon={BookOpen}
           title="ยังไม่มีคอร์สเรียน"
@@ -81,7 +84,7 @@ export default function CoursesPage() {
         />
       ) : (
         <ul className={styles.grid()}>
-          {courses.map((course) => (
+          {availableCourses.map((course) => (
             <li key={course.id} className={styles.item()}>
               <CourseCard
                 course={course}

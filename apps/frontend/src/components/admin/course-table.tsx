@@ -15,6 +15,7 @@ interface Actions {
   onSaveCapacity: (event: SubmitEvent<HTMLFormElement>, course: Course) => void
   onToggleRegistration: (course: Course) => void
   onOpenRoster: (course: Course) => void
+  onCancelCourse: (course: Course) => void
 }
 
 export function CourseTable({ courses, ...actions }: Readonly<{ courses: Course[] } & Actions>) {
@@ -35,6 +36,7 @@ export function CourseTable({ courses, ...actions }: Readonly<{ courses: Course[
               <TableHead>ราคา</TableHead>
               <TableHead>จำนวนรับ</TableHead>
               <TableHead>รับสมัคร</TableHead>
+              <TableHead>สถานะคอร์ส</TableHead>
               <TableHead className={s.headCell({ edge: 'end' })}>
                 <span className={s.srOnly()}>รายชื่อ</span>
               </TableHead>
@@ -57,6 +59,7 @@ function CourseRow({
   onSaveCapacity,
   onToggleRegistration,
   onOpenRoster,
+  onCancelCourse,
 }: Readonly<{ course: Course } & Actions>) {
   const titleId = useId()
   const open = course.registration_open
@@ -92,10 +95,11 @@ function CourseRow({
             type="number"
             min={1}
             defaultValue={course.capacity}
+            disabled={busy || Boolean(course.cancelled_at)}
             aria-label={`จำนวนรับของ ${course.title}`}
             required
           />
-          <Button type="submit" variant="outline" size="sm" disabled={busy}>
+          <Button type="submit" variant="outline" size="sm" disabled={busy || Boolean(course.cancelled_at)}>
             บันทึก
           </Button>
         </form>
@@ -105,7 +109,7 @@ function CourseRow({
         <div className={s.toggle()}>
           <Switch
             checked={open}
-            disabled={busy}
+            disabled={busy || Boolean(course.cancelled_at)}
             onCheckedChange={() => onToggleRegistration(course)}
             aria-label={`เปิดรับสมัคร ${course.title}`}
           />
@@ -113,7 +117,16 @@ function CourseRow({
         </div>
       </TableCell>
 
+      <TableCell data-label="สถานะคอร์ส" className={s.cell({ kind: 'field' })}>
+        {course.cancelled_at ? (
+          <StatusBadge tone="muted">ยกเลิกแล้ว</StatusBadge>
+        ) : (
+          <StatusBadge tone="ok">ใช้งานอยู่</StatusBadge>
+        )}
+      </TableCell>
+
       <TableCell className={s.cell({ kind: 'action' })}>
+        <div className={s.actions()}>
         <Button
           variant="outline"
           size="sm"
@@ -125,6 +138,12 @@ function CourseRow({
           <Users data-icon="inline-start" aria-hidden />
           รายชื่อและการชำระเงิน
         </Button>
+        {!course.cancelled_at && (
+          <Button variant="destructive" size="sm" disabled={busy} onClick={() => onCancelCourse(course)}>
+            ยกเลิกคอร์ส
+          </Button>
+        )}
+        </div>
       </TableCell>
     </TableRow>
   )

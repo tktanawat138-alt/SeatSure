@@ -41,4 +41,5 @@ export const toggleText = cva('min-w-11', {
   },
 })
 export const rosterButton = cva('max-lg:h-8 max-lg:w-full')
+export const actions = cva('flex flex-wrap justify-end gap-2 max-lg:flex-col')
 export const srOnly = cva('sr-only')

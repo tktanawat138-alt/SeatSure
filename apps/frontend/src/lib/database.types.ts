@@ -110,6 +110,12 @@ export type Database = {
       courses: {
         Row: {
           capacity: number
+          cancelled_at: string | null
+          cancellation_reason: string | null
+          starts_at: string | null
+          ends_at: string | null
+          approval_status: string
+          approval_note: string | null
           created_at: string
           description: string
           id: string
@@ -120,6 +126,12 @@ export type Database = {
         }
         Insert: {
           capacity: number
+          cancelled_at?: string | null
+          cancellation_reason?: string | null
+          starts_at?: string | null
+          ends_at?: string | null
+          approval_status?: string
+          approval_note?: string | null
           created_at?: string
           description?: string
           id?: string
@@ -130,6 +142,12 @@ export type Database = {
         }
         Update: {
           capacity?: number
+          cancelled_at?: string | null
+          cancellation_reason?: string | null
+          starts_at?: string | null
+          ends_at?: string | null
+          approval_status?: string
+          approval_note?: string | null
           created_at?: string
           description?: string
           id?: string
@@ -229,6 +247,51 @@ export type Database = {
           },
         ]
       }
+      refund_reports: {
+        Row: {
+          account_email: string
+          account_name: string
+          amount: number
+          booking_id: string
+          cancellation_reason: string
+          course_id: string
+          course_title: string
+          created_at: string
+          id: string
+          payment_id: string
+          receipt_no: string
+          student_name: string
+        }
+        Insert: {
+          account_email: string
+          account_name: string
+          amount: number
+          booking_id: string
+          cancellation_reason: string
+          course_id: string
+          course_title: string
+          created_at?: string
+          id?: string
+          payment_id: string
+          receipt_no: string
+          student_name: string
+        }
+        Update: {
+          account_email?: string
+          account_name?: string
+          amount?: number
+          booking_id?: string
+          cancellation_reason?: string
+          course_id?: string
+          course_title?: string
+          created_at?: string
+          id?: string
+          payment_id?: string
+          receipt_no?: string
+          student_name?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
@@ -250,11 +313,19 @@ export type Database = {
         }
         Relationships: []
       }
+      payment_proofs: {
+        Row: { id: string; booking_id: string; proof_path: string; submitted_at: string }
+        Insert: { id?: string; booking_id: string; proof_path: string; submitted_at?: string }
+        Update: { id?: string; booking_id?: string; proof_path?: string; submitted_at?: string }
+        Relationships: []
+      }
     }
     Views: {
       course_seats: {
         Row: {
           capacity: number | null
+          cancelled_at: string | null
+          cancellation_reason: string | null
           created_at: string | null
           description: string | null
           id: string | null
@@ -264,6 +335,10 @@ export type Database = {
           teacher_id: string | null
           teacher_name: string | null
           title: string | null
+          starts_at: string | null
+          ends_at: string | null
+          approval_status: string | null
+          approval_note: string | null
         }
         Relationships: [
           {
@@ -296,6 +371,8 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      cancel_course: { Args: { p_course_id: string; p_reason: string }; Returns: number }
+      confirm_transfer_payment: { Args: { p_booking_id: string }; Returns: undefined }
       is_admin: { Args: never; Returns: boolean }
       my_role: {
         Args: never

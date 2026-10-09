@@ -1,5 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import type { Database } from './database.types'
+import type { Course } from '@/entities/course'
+export type { Course } from '@/entities/course'
 
 const url = import.meta.env.VITE_SUPABASE_URL
 const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
@@ -13,20 +15,8 @@ type Tables = Database['public']['Tables']
 export type Profile = Tables['profiles']['Row']
 export type Booking = Tables['bookings']['Row']
 export type Payment = Tables['payments']['Row']
-export type BookingMode = 'safe' | 'unsafe'
-
-/** A row of the course_seats view. (Generated view types mark every column nullable.) */
-export interface Course {
-  id: string
-  title: string
-  description: string
-  teacher_id: string | null
-  teacher_name: string | null
-  capacity: number
-  price: number
-  registration_open: boolean
-  seats_taken: number
-}
+export type RefundReport = Tables['refund_reports']['Row']
+export type PaymentProof = Tables['payment_proofs']['Row']
 
 export async function fetchCourses(teacherId?: string): Promise<Course[]> {
   let query = supabase.from('course_seats').select().order('created_at')

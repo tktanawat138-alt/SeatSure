@@ -5,7 +5,7 @@ import { SeatMeter } from '@/components/seat-meter'
 import { StatusBadge } from '@/components/status-badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardAction, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
-import { baht } from '@/lib/format'
+import { baht, parentCourseSchedule } from '@/lib/format'
 import type { Booking, Course } from '@/lib/supabase'
 import {
   actions,
@@ -15,6 +15,7 @@ import {
   header,
   meter,
   price,
+  schedule,
   teacher,
   teacherIcon,
   unavailable,
@@ -47,6 +48,7 @@ export function CourseCard({ course, mine, onBook }: Readonly<CourseCardProps>) 
 
       <CardContent className={content()}>
         {course.description && <p>{course.description}</p>}
+        {course.starts_at && course.ends_at && <p className={schedule()}>{parentCourseSchedule(course.starts_at, course.ends_at)}</p>}
         <SeatMeter taken={course.seats_taken} capacity={course.capacity} className={meter()} />
       </CardContent>
 
@@ -92,7 +94,7 @@ function CourseAction({ course, mine, onBook, titleId }: Readonly<CourseCardProp
   if (course.seats_taken >= course.capacity) return <Unavailable>เต็มแล้ว</Unavailable>
   return (
     <Button size="lg" className={bookButton()} aria-describedby={titleId} onClick={onBook}>
-      จองที่นั่ง
+      ลงทะเบียน
     </Button>
   )
 }
