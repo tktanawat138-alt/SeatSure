@@ -3,6 +3,10 @@ dist
 .env.local
 .env.*.local
 .wrangler
-supabase/.temp
-supabase/.branches
+apps/backend/supabase/.temp
+apps/backend/supabase/.branches
 *.log
+test-results
+playwright-report
+.frontend.log
+.task

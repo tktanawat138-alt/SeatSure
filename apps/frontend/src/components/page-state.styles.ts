@@ -1,0 +1,17 @@
+import { cva } from 'class-variance-authority'
+
+export const fullPage = cva('flex min-h-svh items-center justify-center gap-2 text-sm text-muted-foreground')
+export const spinner = cva('size-4 animate-spin')
+export const loading = cva('space-y-6')
+export const srOnly = cva('sr-only')
+export const loadingHeader = cva('space-y-2')
+export const skeletonTitle = cva('h-7 w-48')
+export const skeletonSubtitle = cva('h-4 w-72 max-w-full')
+export const skeletonGrid = cva('grid gap-4 sm:grid-cols-2 lg:grid-cols-3')
+export const skeletonCard = cva('h-40 rounded-xl')
+export const empty = cva('flex flex-col items-center gap-3 rounded-xl border border-dashed bg-background px-6 py-12 text-center')
+export const emptyIconWrap = cva('flex size-10 items-center justify-center rounded-full bg-muted text-muted-foreground')
+export const emptyIcon = cva('size-5')
+export const emptyText = cva('space-y-1')
+export const emptyTitle = cva('font-medium')
+export const emptyDescription = cva('text-sm text-muted-foreground')

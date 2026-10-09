@@ -21,12 +21,10 @@
 ## เริ่มใช้งาน
 
 ```
-npm install
-npm run setup
-npm run dev
+task up
 ```
 
-`npm run setup` เปิด Supabase ในเครื่อง สร้างไฟล์ `.env.local` และสร้างบัญชีกับคอร์สตัวอย่าง
+`task up` เปิด Supabase ในเครื่อง สร้างไฟล์ `.env.local` และสร้างบัญชีกับคอร์สตัวอย่าง
 ครั้งแรกใช้เวลาหลายนาทีเพราะต้องดาวน์โหลด Docker image
 จากนั้นเปิด http://localhost:5173
 
@@ -43,8 +41,8 @@ npm run dev
 ชุดเทสเดียวกันรันได้สองโหมด เทสยิงคำขอเข้าฐานข้อมูลจริงผ่าน API เดียวกับที่หน้าเว็บใช้
 
 ```
-npm test             # โหมดปกติ: ผ่านทั้ง 24 ข้อ
-npm run test:unsafe  # โหมดที่ปิดการป้องกัน: ไม่ผ่าน 5 ข้อ
+task test:integration             # โหมดปกติ: ผ่านทั้ง 24 ข้อ
+(cd apps/frontend && npm run test:unsafe)  # โหมดที่ปิดการป้องกัน: ไม่ผ่าน 5 ข้อ
 ```
 
 โหมด unsafe สลับ `book_seat` และ `pay_booking` ไปใช้โค้ดแบบ "เช็กก่อนแล้วค่อยบันทึก" ที่ไม่มีการล็อก
@@ -60,7 +58,7 @@ npm run test:unsafe  # โหมดที่ปิดการป้องกั
 
 ระหว่างรันเทส ระบบจะหน่วง 100 มิลลิวินาทีระหว่าง "เช็กที่นั่ง" กับ "บันทึกการจอง" ทั้งสองโหมดเท่ากัน
 เพื่อให้คำขอที่ยิงพร้อมกันซ้อนทับกันทุกครั้ง ถ้าไม่หน่วง บั๊กจองเกินยังเกิดได้แต่ไม่ทุกรอบ
-ค่านี้เป็น 0 เมื่อใช้งานผ่านหน้าเว็บ (ตั้งใน `tests/global-setup.ts`)
+ค่านี้เป็น 0 เมื่อใช้งานผ่านหน้าเว็บ (ตั้งใน `apps/frontend/tests/integration/global-setup.ts`)
 
 เมื่อรันจบ ระบบจะกลับเป็นโหมดปกติและลบข้อมูลที่เทสสร้างไว้
 ถ้าหน้าเว็บขึ้นแถบแดง "โหมดสาธิตบั๊กเปิดอยู่" ให้เข้าเป็นแอดมินแล้วกด "กลับเป็นโหมดปกติ"
@@ -69,15 +67,15 @@ npm run test:unsafe  # โหมดที่ปิดการป้องกั
 
 | ตำแหน่ง | เนื้อหา |
 |---|---|
-| `supabase/migrations/` | ตาราง สิทธิ์การเข้าถึง (RLS) และฟังก์ชัน `book_seat`, `pay_booking` |
-| `tests/r1-overbooking.test.ts` | ไม่เกิน: จองพร้อมกัน คอร์สเต็ม ปิดรับสมัคร ที่นั่งหมดเวลา |
-| `tests/r2-payment.test.ts` | ไม่ซ้ำ และไม่หลุด: จ่ายซ้ำ กดรัว จ่ายช้า |
-| `tests/security.test.ts` | แต่ละบทบาทเห็นและแก้ได้เฉพาะข้อมูลที่มีสิทธิ์ รวมเคส "นักเรียนเห็นเฉพาะเกรดของตัวเอง" |
+| `apps/backend/supabase/migrations/` | ตาราง สิทธิ์การเข้าถึง (RLS) และฟังก์ชัน `book_seat`, `pay_booking` |
+| `apps/frontend/tests/integration/r1-overbooking.test.ts` | ไม่เกิน: จองพร้อมกัน คอร์สเต็ม ปิดรับสมัคร ที่นั่งหมดเวลา |
+| `apps/frontend/tests/integration/r2-payment.test.ts` | ไม่ซ้ำ และไม่หลุด: จ่ายซ้ำ กดรัว จ่ายช้า |
+| `apps/frontend/tests/integration/security.test.ts` | แต่ละบทบาทเห็นและแก้ได้เฉพาะข้อมูลที่มีสิทธิ์ รวมเคส "นักเรียนเห็นเฉพาะเกรดของตัวเอง" |
 | `src/pages/` | หน้าเว็บ React หนึ่งไฟล์ต่อหนึ่งหน้า |
 | `src/components/` | คอมโพเนนต์ที่หน้าต่าง ๆ ใช้ร่วมกัน เช่น โครงหน้า (`app-shell`) ป้ายสถานะ แถบที่นั่ง |
 | `src/components/ui/` | คอมโพเนนต์ของ shadcn/ui (ปุ่ม การ์ด ตาราง ไดอะล็อก ฯลฯ) |
 | `src/index.css` | ธีม: สีหลัก ฟอนต์ ความโค้งมุม |
-| `scripts/` | สร้าง `.env.local` และข้อมูลตัวอย่าง |
+| `apps/backend/scripts/` | สร้าง `.env.local` และข้อมูลตัวอย่าง |
 
 ## แก้หน้าตา
 
@@ -89,9 +87,9 @@ npm run test:unsafe  # โหมดที่ปิดการป้องกั
 
 | คำสั่ง | ผล |
 |---|---|
-| `npm run db:reset` | ล้างฐานข้อมูล สร้างใหม่จาก migration แล้วใส่ข้อมูลตัวอย่าง |
-| `npm run db:stop` | ปิด Supabase ในเครื่อง |
-| `npm run db:types` | สร้าง `src/lib/database.types.ts` ใหม่หลังแก้ schema |
+| `task backend:reset` | ล้างฐานข้อมูล สร้างใหม่จาก migration แล้วใส่ข้อมูลตัวอย่าง |
+| `task down` | ปิด Supabase ในเครื่อง |
+| `task backend:types` | สร้าง `src/lib/database.types.ts` ใหม่หลังแก้ schema |
 
 ## ใช้งานผ่านอินเทอร์เน็ต
 
@@ -104,15 +102,15 @@ npm run test:unsafe  # โหมดที่ปิดการป้องกั
 supabase login
 supabase link --project-ref <รหัสโปรเจกต์ Supabase>
 supabase db push
-npm run cloud:seed
+(cd apps/backend && npm run cloud:seed)
 npx wrangler login
-npm run deploy
+(cd apps/frontend && npm run deploy)
 ```
 
-- `npm run cloud:seed` ต้องมี `SUPABASE_SERVICE_ROLE_KEY` (secret key ของโปรเจกต์) และ `SEED_PASSWORD` ใน `.env.production.local` ก่อน
+- `npm run cloud:seed` (ใน `apps/backend`) ต้องมี `SUPABASE_SERVICE_ROLE_KEY` (secret key ของโปรเจกต์) และ `SEED_PASSWORD` ใน `.env.production.local` ก่อน
 - บัญชีบนคลาวด์ใช้รหัสผ่านจาก `SEED_PASSWORD` ไม่ใช่ `seatsure123` และหน้าเข้าสู่ระบบบนเว็บจริงไม่มีปุ่มบัญชีทดลอง
 - แก้หน้าเว็บแล้วสั่ง `npm run deploy` แก้ schema แล้วสั่ง `supabase db push`
-- `npm run dev` และ `npm test` ใช้ Supabase ในเครื่องเสมอ ไม่แตะโปรเจกต์คลาวด์
+- `task up` และ `task test` ใช้ Supabase ในเครื่องเสมอ ไม่แตะโปรเจกต์คลาวด์
 
 ## ขอบเขต
 
