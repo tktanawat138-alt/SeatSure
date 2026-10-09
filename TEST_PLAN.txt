@@ -1,0 +1,191 @@
+SEATSURE - TEST PLAN
+เวอร์ชันเอกสาร: 1.0
+วันที่: 10 ตุลาคม 2569
+
+1. เป้าหมายและขอบเขต
+เอกสารนี้อธิบายวิธีทดสอบระบบ SeatSure ตั้งแต่ unit/integration/E2E ไปจนถึง
+แผน load test และ security scan ระบบใช้ React/Vite, Supabase และ Cloudflare
+Workers โดยข้อมูลการชำระเงินเป็นข้อมูลสาธิต ไม่มีการตัดเงินจริงหรือโอนเงินจริง
+
+หลักประกันสำคัญที่ต้องตรวจ:
+- จำนวนที่นั่งที่จองหรือชำระแล้วต้องไม่เกินจำนวนรับ
+- ผู้ใช้จองคอร์สเดิมซ้ำไม่ได้ และการยืนยันจ่ายซ้ำต้องไม่สร้างรายการเงินซ้ำ
+- ผู้ปกครองเห็นข้อมูลของตนเอง ครูเห็นรายชื่อนักเรียนเฉพาะคอร์สตนเอง
+- แนบหลักฐานแล้วสถานะยังไม่เป็นชำระ จนกดปุ่มยืนยัน
+- เปลี่ยนรูปหลักฐานได้ก่อนยืนยัน เมื่อยืนยันแล้วจึงสร้างการชำระและใบเสร็จ
+- การยกเลิกคอร์สสร้างรายงานคืนเงินให้ผู้ชำระแล้ว แต่ไม่มีการโอนเงินคืนอัตโนมัติ
+- การแก้ไขคอร์ส/ตารางเรียนต้องปรากฏในหน้าผู้ใช้โดยไม่ต้องกดรีเฟรชเอง
+
+2. สถานะ test ใน repository ปัจจุบัน
+สิ่งที่มีอยู่แล้ว:
+- Unit: apps/frontend/tests/unit/ ตรวจรูปแบบ UI และกติกาแบ่ง layer
+- Integration: apps/frontend/tests/integration/ ตรวจ overbooking, payment และ RLS/security
+- E2E: apps/frontend/tests/e2e/login.spec.ts ตรวจฟอร์ม login ด้วย Playwright
+- Taskfile มี task test:unit, task test:integration, task test:e2e และ task test
+
+สิ่งที่ยังเป็นแผนและต้องพัฒนาก่อนจึงจะรันได้:
+- E2E แบบ Page Object Model สำหรับ workflow จริงของ parent/teacher/admin
+- Load test scripts สำหรับ k6 หรือ JMeter
+- Security scan ที่ทำงานใน CI และ DAST scan
+การมีแผนในเอกสารนี้ไม่ได้หมายความว่าสคริปต์เหล่านี้ถูกสร้างหรือผ่านการทดสอบแล้ว
+
+3. เตรียมสภาพแวดล้อมทดสอบ
+ใช้ local Supabase และข้อมูลสังเคราะห์เท่านั้น ห้ามรัน seed/reset/load test กับ
+Supabase Cloud หรือบัญชีผู้ใช้จริง เพราะ task backend:reset ลบและสร้างฐานข้อมูลใหม่
+
+สิ่งที่ต้องติดตั้ง:
+- Node.js 20 ขึ้นไป
+- Docker Desktop และเปิด Docker อยู่
+- Supabase CLI
+- Task (go-task)
+- Playwright Chromium สำหรับ E2E
+- k6 (เฉพาะเมื่อมีการเพิ่มสคริปต์ load test)
+
+เริ่มระบบ local จาก root ของ repository:
+  task up
+
+คำสั่งนี้เริ่ม Supabase, สร้าง apps/frontend/.env.local และลงข้อมูลตัวอย่าง
+จากนั้นเปิด http://localhost:5173
+หาก task up ใช้ไม่ได้บน Windows ให้รันคำสั่งตาม Taskfile ผ่าน WSL/Git Bash
+หรือเริ่ม Supabase ด้วย `cd apps/backend; supabase start` แล้วรันสคริปต์ env/seed
+ตาม Taskfile. ตรวจ URL/keys ว่าเป็น local Supabase ก่อนทดสอบ
+
+ห้ามใช้ .env.production.local, service-role key หรือบัญชี admin บน Cloud ในการ
+ทดสอบอัตโนมัติ ไฟล์ .env.local และ secret ห้าม commit ลง Git
+
+4. วิธีรัน test ที่มีอยู่
+รันจาก root:
+  task test:unit
+  task test:integration
+  task test:e2e
+  task test
+
+หรือจาก apps/frontend:
+  npm run test:unit
+  npm run test:integration
+  npx playwright install chromium
+  npm run test:e2e
+
+Integration tests ต้องใช้ local Supabase และ service-role key ใน environment
+ทดสอบเท่านั้น โดย global setup เตรียมข้อมูล/role สำหรับ test และ helpers ทำ cleanup
+หลังจบ ห้ามนำ key ดังกล่าวไปใช้ฝั่ง browser หรือ production
+
+ถ้าแก้ schema/migration ให้ reset เฉพาะ local แล้วรันชุด integration:
+  task backend:reset
+  task test:integration
+การ reset จะลบข้อมูล local ทั้งหมด
+
+5. แผน E2E Automation Framework (Playwright + Page Object Model)
+วาง tests ไว้ใน apps/frontend/tests/e2e/ และ Page Objects/fixtures ไว้ใน
+apps/frontend/tests/e2e/pages/ และ apps/frontend/tests/e2e/fixtures/ ตามลำดับ
+ให้ spec อธิบายผลลัพธ์ทางธุรกิจ ส่วน Page Object รวม locator/action ของแต่ละหน้า
+ใช้ locator ตาม role/label/text และหลีกเลี่ยง selector ที่ผูกกับ CSS
+
+Page Objects ที่ควรมี:
+- LoginPage: เข้าระบบและตรวจ role/หน้าแรก
+- ParentCoursesPage: ดูคอร์ส ลงทะเบียน และเปิดหน้ารายการของฉัน
+- MyBookingsPage: แนบ/เปลี่ยนหลักฐาน ยืนยันการชำระ และตรวจใบเสร็จ
+- TeacherPage: สร้างคอร์สและแก้วัน/เวลา
+- AdminCoursesPage: อนุมัติ/ยกเลิกคอร์ส
+- AdminPaymentsPage: ตรวจหลักฐานและรายงานคืนเงิน
+
+Core workflow A - ครูสร้างคอร์สและผู้ปกครองลงทะเบียน/ชำระ:
+1. เข้าด้วยบัญชีครูทดสอบ สร้างคอร์สที่มีชื่อ ราคา จำนวนรับ และวันเวลา
+2. เข้าด้วยบัญชี admin01 สำหรับ local test แล้วอนุมัติคอร์ส
+3. ตรวจว่าคอร์สปรากฏในหน้าผู้ปกครอง
+4. ผู้ปกครองลงทะเบียน ระบุชื่อนักเรียน แล้วแนบรูปหลักฐานจำลอง
+5. ตรวจว่าสถานะยังไม่ชำระ และเปลี่ยนรูปหลักฐานได้
+6. กดยืนยันการชำระ ตรวจสถานะชำระแล้วและใบเสร็จ
+7. ตรวจว่า admin ดูหลักฐาน/รายการชำระได้
+
+Core workflow B - แก้ตารางและยกเลิกคอร์ส/รายงานคืนเงิน:
+1. ครูแก้วันที่หรือเวลาในคอร์สที่อนุมัติแล้ว
+2. เปิดหน้าผู้ปกครองอีก browser/context ตรวจว่ากำหนดการใหม่ปรากฏโดยไม่ reload
+3. ใช้ผู้ปกครองทดสอบที่มีรายการชำระแล้ว และให้ admin ยกเลิกคอร์สพร้อมเหตุผล
+4. ตรวจว่าคอร์สปิดรับ รายการจองถูกยกเลิก และ payment เปลี่ยนเป็น refund_due
+5. ตรวจรายงานคืนเงินว่ามียอด/ใบเสร็จ/เหตุผลถูกต้อง และผู้ปกครองเห็นสถานะรอคืนเงิน
+6. ตรวจว่าไม่มีการกล่าวอ้างว่าเงินคืนแล้วจนกว่าจะทำการคืนเงินจริงนอกระบบ
+
+เกณฑ์ผ่าน E2E:
+- workflow จบครบโดยไม่มีการใช้ข้อมูลจาก production
+- ยืนยันผลผ่านข้อความ/สถานะ/ข้อมูลที่ผู้ใช้เห็น ไม่ตรวจด้วย CSS ภายใน
+- การเปลี่ยนข้อมูลจากอีก browser ปรากฏในเวลาที่กำหนด (เป้าหมายไม่เกิน 20 วินาที
+  สำหรับ fallback polling และควรเร็วกว่านั้นเมื่อ Realtime ทำงาน)
+- เก็บ Playwright trace เมื่อ retry/failure เพื่อใช้วิเคราะห์
+
+หมายเหตุ: ปัจจุบันยังมีเพียง E2E หน้า login ต้องเขียน specs/fixtures/POM เพิ่ม
+ก่อนจะถือว่า workflow A/B เป็น automation ที่ใช้งานได้จริง
+
+6. Non-Functional: Load/Performance Test
+เป้าหมาย:
+- ตรวจ latency และ error rate ขณะเปิดดูคอร์สและอ่านรายการ
+- ตรวจความถูกต้องเมื่อผู้ใช้หลายคนแย่งที่นั่งพร้อมกัน
+- ตรวจว่าจำนวนที่นั่งไม่เกิน capacity แม้มี concurrent requests
+
+เครื่องมือแนะนำ: k6 สำหรับ script ใน Git/CI; JMeter ใช้ได้ถ้าทีมต้องการ GUI
+และ test plan แบบ .jmx. ให้เลือกเครื่องมือเดียวเป็นชุดหลักเพื่อไม่ซ้ำซ้อน
+
+สถานการณ์ที่ควรเพิ่มไว้ใน apps/backend/performance/:
+A. Browse: ramp 0 -> 50 virtual users ใน 1 นาที, คงที่ 3 นาที, ลดลง 1 นาที
+B. Booking burst: ผู้ใช้สังเคราะห์ 20-100 คนเรียก book_seat ต่อคอร์ส capacity จำกัด
+C. Mixed workload: อ่านคอร์ส/ที่นั่งเป็นหลัก และมีการลงทะเบียนตามสัดส่วนที่กำหนด
+D. Soak (ภายหลัง): workload ต่ำต่อเนื่อง 30-60 นาที เพื่อตรวจ connection/resource
+
+เกณฑ์เริ่มต้นสำหรับ local/staging (เป็นเป้าหมายตั้งต้น ต้องเก็บ baseline ก่อน):
+- Read API p95 < 800 ms
+- Mutation/RPC p95 < 1,500 ms
+- unexpected HTTP/RPC error rate < 1% (ไม่นับ business rejection ที่คาดไว้ เช่น
+  course_full, already_booked หรือ registration_closed)
+- seats_taken ไม่เกิน capacity และไม่มี payment ซ้ำ
+- บันทึก response time, throughput, error rate, VU, commit SHA และ environment
+
+ขั้นตอนใช้งานเมื่อสร้างสคริปต์แล้ว:
+1. รันเฉพาะ local หรือ staging ที่อนุมัติและใช้ test data
+2. ตรวจ BASE_URL และ project ref ก่อนเริ่มทุกครั้ง ห้ามชี้ไป production
+3. รัน k6 เช่น `k6 run --env BASE_URL=http://localhost:54321 <script.js>`
+   คำสั่งเป็นตัวอย่าง; ต้องกำหนด endpoint/key/user ตามสคริปต์จริงก่อนใช้
+4. ตรวจผลทั้ง latency และ invariant ในฐานข้อมูล ไม่ตัดสินจาก throughput อย่างเดียว
+5. เก็บผลเป็น artifact และเปรียบเทียบกับ baseline ก่อน merge
+
+ปัจจุบัน integration test R1/R2 ทดสอบ concurrency/ความถูกต้องระดับฐานข้อมูลแล้ว
+แต่ยังไม่ใช่ load test benchmark และ repository ยังไม่มี k6/JMeter script
+
+7. Security Testing Strategy
+ทำทุก PR หรือก่อน release:
+- RLS integration tests: ผู้ปกครองอ่าน/แก้ข้อมูลคนอื่นไม่ได้; ครูเห็น roster เฉพาะ
+  คอร์สตัวเอง; ผู้ไม่มีสิทธิ์เรียก admin RPC ไม่ได้
+- ตรวจ payment-proof storage: อ่านไฟล์ของผู้อื่นไม่ได้, ไฟล์เกิน 5 MB หรือ MIME
+  นอก JPG/PNG/WebP ถูกปฏิเสธ, ยืนยันได้เฉพาะหลักฐานของ booking ตนเอง
+- Dependency scan: `npm audit` จาก apps/frontend และ apps/backend แล้วพิจารณา
+  severity/production exposure ก่อนอัปเดต dependency
+- Secret scan: ใช้ Gitleaks หรือ GitHub secret scanning กับ working tree และ
+  history; หากพบ key ให้ revoke/rotate ที่ provider ไม่ใช่เพียงลบจากไฟล์
+- SAST: เพิ่ม Semgrep rule pack สำหรับ TypeScript/React และตรวจ SQL migrations
+  โดยเน้น authorization, SQL/RPC security definer, input validation และ secrets
+- DAST: OWASP ZAP baseline กับ local/staging URL ที่ได้รับอนุญาตเท่านั้น
+  ตรวจ unauthenticated routes ก่อน; authenticated scan ต้องใช้บัญชีสังเคราะห์
+
+ห้ามยิง scanner หรือ load test ใส่ Cloudflare/Supabase production โดยไม่มี
+การอนุมัติและช่วงเวลาทดสอบที่ชัดเจน ห้ามใช้ข้อมูลผู้ปกครอง/นักเรียนจริง
+
+เกณฑ์ผ่าน security:
+- ไม่มี Critical/High ที่ยังไม่ triage ก่อน release
+- ไม่มีการข้าม RLS หรือเข้าถึงข้อมูล/หลักฐานข้ามบัญชี
+- ไม่มี secret ใน source, build artifacts หรือ Git history ที่ยัง active
+- รายการ Medium/Low มีผู้รับผิดชอบและกำหนดวันแก้ไข
+
+8. รายงานผลและลำดับการทำงาน
+ทุกครั้งที่ทดสอบให้บันทึก:
+- วันที่, commit SHA, environment, คำสั่งที่ใช้ และชุด test
+- ผ่าน/ไม่ผ่าน, จำนวน tests, defect/issue link และหลักฐาน trace/log
+- สำหรับ load: VU, duration, p50/p95/p99, throughput, error rate, invariant
+- สำหรับ security: scanner/version, scope, findings, severity และ remediation
+
+ลำดับที่แนะนำ:
+1. รัน unit tests ทุก PR
+2. รัน integration tests บน local Supabase เมื่อแตะ database/RPC/RLS
+3. เพิ่ม Playwright POM และ core workflow A/B แล้วรันก่อน release
+4. รัน dependency/secret/SAST scan ใน CI
+5. รัน k6 baseline บน staging ก่อน release ใหญ่ และเก็บผลเทียบรอบก่อน
+
+จบเอกสาร
