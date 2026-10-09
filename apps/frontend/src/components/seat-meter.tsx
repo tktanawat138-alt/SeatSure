@@ -1,5 +1,5 @@
 import { Progress } from '@/components/ui/progress'
-import { cn } from '@/lib/utils'
+import { bar, count, header, root, status, type BarProps } from './seat-meter.styles'
 
 /** How full a course is: a sentence, the count, and a bar that changes colour as it fills. */
 export function SeatMeter({
@@ -17,23 +17,23 @@ export function SeatMeter({
   const left = capacity - taken
 
   let label = `เหลือ ${left} จาก ${capacity} ที่นั่ง`
-  let barColor = '*:data-[slot=progress-indicator]:bg-primary'
+  let level: BarProps['level'] = 'normal'
   if (left < 0) {
     label = `จองเกิน ${-left} ที่นั่ง (รับ ${capacity} คน)`
-    barColor = '*:data-[slot=progress-indicator]:bg-destructive'
+    level = 'over'
   } else if (left === 0) {
     label = `เต็มแล้ว (รับ ${capacity} คน)`
-    barColor = '*:data-[slot=progress-indicator]:bg-muted-foreground'
+    level = 'full'
   } else if (taken / capacity >= 0.8) {
-    barColor = '*:data-[slot=progress-indicator]:bg-amber-500'
+    level = 'nearFull'
   }
 
   return (
-    <div className={cn('space-y-1.5', className)}>
-      <div className="flex items-baseline justify-between gap-2 text-sm">
-        <span className={cn(left < 0 && 'font-medium text-destructive')}>{label}</span>
+    <div className={root({ className })}>
+      <div className={header()}>
+        <span className={status({ over: left < 0 })}>{label}</span>
         {!hideCount && (
-          <span className="text-xs text-muted-foreground tabular-nums">
+          <span className={count()}>
             {taken}/{capacity}
           </span>
         )}
@@ -41,7 +41,7 @@ export function SeatMeter({
       <Progress
         value={Math.min(100, (taken / capacity) * 100)}
         aria-label={label}
-        className={cn('h-1.5', barColor)}
+        className={bar({ level })}
       />
     </div>
   )

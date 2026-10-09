@@ -9,6 +9,7 @@ import { Card, CardAction, CardContent, CardHeader, CardTitle } from '@/componen
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { useAuth } from '@/lib/auth'
 import { bookingStatus, dateTime, holdsSeat } from '@/lib/format'
+import * as styles from './TeacherPage.styles'
 import { fetchCourses, supabase, type Booking, type Course } from '@/lib/supabase'
 
 /** The booking time as two unbreakable parts, so a narrow column wraps between date and time and nowhere else. */
@@ -18,22 +19,22 @@ function BookedAt({ iso }: Readonly<{ iso: string }>) {
   if (cut < 0) return text
   return (
     <>
-      <span className="whitespace-nowrap">{text.slice(0, cut)}</span>{' '}
-      <span className="whitespace-nowrap">{text.slice(cut + 1)}</span>
+      <span className={styles.nowrap()}>{text.slice(0, cut)}</span>{' '}
+      <span className={styles.nowrap()}>{text.slice(cut + 1)}</span>
     </>
   )
 }
 
 function RosterTable({ students, now }: Readonly<{ students: Booking[]; now: number }>) {
   return (
-    <div className="border-t">
+    <div className={styles.rosterWrap()}>
       <Table>
-        <TableHeader className="bg-muted/50">
-          <TableRow className="hover:bg-transparent">
-            <TableHead className="w-14 pl-4 text-muted-foreground">ลำดับ</TableHead>
-            <TableHead className="text-muted-foreground">ชื่อผู้เรียน</TableHead>
-            <TableHead className="text-muted-foreground">สถานะ</TableHead>
-            <TableHead className="pr-4 text-right text-muted-foreground">จองเมื่อ</TableHead>
+        <TableHeader className={styles.tableHeader()}>
+          <TableRow className={styles.headRow()}>
+            <TableHead className={styles.headCell({ column: 'rank' })}>ลำดับ</TableHead>
+            <TableHead className={styles.headCell({ column: 'name' })}>ชื่อผู้เรียน</TableHead>
+            <TableHead className={styles.headCell({ column: 'status' })}>สถานะ</TableHead>
+            <TableHead className={styles.headCell({ column: 'time' })}>จองเมื่อ</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -41,13 +42,13 @@ function RosterTable({ students, now }: Readonly<{ students: Booking[]; now: num
             const status = bookingStatus(student, now)
             return (
               <TableRow key={student.id}>
-                <TableCell className="pl-4 text-muted-foreground tabular-nums">{index + 1}</TableCell>
-                <TableCell className="font-medium whitespace-normal">{student.student_name}</TableCell>
+                <TableCell className={styles.cell({ column: 'rank' })}>{index + 1}</TableCell>
+                <TableCell className={styles.cell({ column: 'name' })}>{student.student_name}</TableCell>
                 <TableCell>
                   <StatusBadge tone={status.tone}>{status.text}</StatusBadge>
                 </TableCell>
                 {/* On a phone this column is only as wide as the date, so the time sits on a second line. */}
-                <TableCell className="w-px pr-4 text-right whitespace-normal text-muted-foreground tabular-nums sm:w-auto sm:whitespace-nowrap">
+                <TableCell className={styles.cell({ column: 'time' })}>
                   <BookedAt iso={student.created_at} />
                 </TableCell>
               </TableRow>
@@ -66,13 +67,13 @@ function CourseRoster({
 }: Readonly<{ course: Course; students: Booking[]; now: number }>) {
   const hasStudents = students.length > 0
   return (
-    <Card className={hasStudents ? 'pb-0' : undefined}>
+    <Card className={styles.courseCard({ hasStudents })}>
       <CardHeader>
         <CardTitle>
           <h2>{course.title}</h2>
         </CardTitle>
         <CardAction>
-          <Badge variant="secondary" className="tabular-nums">
+          <Badge variant="secondary" className={styles.countBadge()}>
             <Users aria-hidden />
             {students.length} / {course.capacity} คน
           </Badge>
@@ -85,8 +86,8 @@ function CourseRoster({
         <RosterTable students={students} now={now} />
       ) : (
         <CardContent>
-          <p className="flex items-center justify-center gap-2 rounded-lg border border-dashed px-4 py-6 text-sm text-muted-foreground">
-            <Users className="size-4" aria-hidden />
+          <p className={styles.emptyNote()}>
+            <Users className={styles.emptyIcon()} aria-hidden />
             ยังไม่มีผู้จอง
           </p>
         </CardContent>
@@ -136,7 +137,7 @@ export default function TeacherPage() {
         />
       )}
 
-      <div className="grid items-start gap-4 lg:grid-cols-2">
+      <div className={styles.grid()}>
         {courses.map((course) => (
           <CourseRoster
             key={course.id}

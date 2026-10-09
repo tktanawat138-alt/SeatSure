@@ -10,6 +10,7 @@ import { RosterDialog } from '@/components/admin/roster-dialog'
 import { PageHeader } from '@/components/page-header'
 import { EmptyState, PageError, PageLoading } from '@/components/page-state'
 import { errorText } from '@/lib/format'
+import * as styles from './AdminPage.styles'
 import { fetchCourses, supabase, type BookingMode, type Course, type Profile } from '@/lib/supabase'
 
 type Change = () => PromiseLike<{ error: { message: string } | null }>
@@ -127,7 +128,7 @@ export default function AdminPage({ mode, onModeChange }: Readonly<Props>) {
         <AddCourseDialog teachers={teachers} busy={busy} onAdd={addCourse} />
       </PageHeader>
 
-      <div className="space-y-4">
+      <div className={styles.stack()}>
         {loadError && <PageError message={loadError} />}
 
         <CourseStats courses={courses} />

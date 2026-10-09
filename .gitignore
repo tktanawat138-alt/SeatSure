@@ -8,5 +8,5 @@ apps/backend/supabase/.branches
 *.log
 test-results
 playwright-report
-.frontend.pid
 .frontend.log
+.task

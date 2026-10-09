@@ -1,17 +1,14 @@
 import { Armchair } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { icon, mark, root } from './logo.styles'
 
 /** `inverted` is for placing the logo on the primary colour. */
 export function Logo({ className, inverted = false }: Readonly<{ className?: string; inverted?: boolean }>) {
   return (
-    <span className={cn('flex items-center gap-2 text-base font-semibold tracking-tight', className)}>
+    <span className={root({ className })}>
       <span
-        className={cn(
-          'flex size-7 items-center justify-center rounded-lg',
-          inverted ? 'bg-primary-foreground text-primary' : 'bg-primary text-primary-foreground',
-        )}
+        className={mark({ inverted })}
       >
-        <Armchair className="size-4" aria-hidden />
+        <Armchair className={icon()} aria-hidden />
       </span>
       SeatSure
     </span>

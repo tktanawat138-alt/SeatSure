@@ -1,7 +1,7 @@
 import { Armchair, BookOpen, DoorOpen, TriangleAlert, type LucideIcon } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import type { Course } from '@/lib/supabase'
-import { cn } from '@/lib/utils'
+import * as s from './course-stats.styles'
 
 interface Stat {
   label: string
@@ -20,14 +20,24 @@ export function CourseStats({ courses }: Readonly<{ courses: Course[] }>) {
   const overbooked = courses.filter((course) => course.seats_taken > course.capacity).length
 
   const stats: Stat[] = [
-    { label: 'จำนวนคอร์ส', value: String(courses.length), hint: 'คอร์สที่มีในระบบ', icon: BookOpen },
+    {
+      label: 'จำนวนคอร์ส',
+      value: String(courses.length),
+      hint: 'คอร์สที่มีในระบบ',
+      icon: BookOpen,
+    },
     {
       label: 'ยอดจองรวม',
       value: `${seatsTaken} / ${capacity}`,
       hint: `ที่นั่ง หรือ ${filled}% ของจำนวนรับ`,
       icon: Armchair,
     },
-    { label: 'เปิดรับสมัครอยู่', value: String(open), hint: `จาก ${courses.length} คอร์ส`, icon: DoorOpen },
+    {
+      label: 'เปิดรับสมัครอยู่',
+      value: String(open),
+      hint: `จาก ${courses.length} คอร์ส`,
+      icon: DoorOpen,
+    },
     {
       label: 'คอร์สที่จองเกิน',
       value: String(overbooked),
@@ -38,7 +48,7 @@ export function CourseStats({ courses }: Readonly<{ courses: Course[] }>) {
   ]
 
   return (
-    <section aria-label="สรุปภาพรวม" className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+    <section aria-label="สรุปภาพรวม" className={s.root()}>
       {stats.map((stat) => (
         <StatCard key={stat.label} {...stat} />
       ))}
@@ -48,14 +58,14 @@ export function CourseStats({ courses }: Readonly<{ courses: Course[] }>) {
 
 function StatCard({ label, value, hint, icon: Icon, alert = false }: Readonly<Stat>) {
   return (
-    <Card size="sm" className={cn(alert && 'bg-destructive/5 ring-destructive/30')}>
-      <CardContent className="space-y-1">
-        <div className="flex items-center justify-between gap-2">
-          <p className="text-muted-foreground">{label}</p>
-          <Icon className={cn('size-4 shrink-0 text-muted-foreground', alert && 'text-destructive')} aria-hidden />
+    <Card size="sm" className={s.card({ alert })}>
+      <CardContent className={s.content()}>
+        <div className={s.top()}>
+          <p className={s.label()}>{label}</p>
+          <Icon className={s.icon({ alert })} aria-hidden />
         </div>
-        <p className={cn('text-2xl font-semibold tabular-nums', alert && 'text-destructive')}>{value}</p>
-        <p className="text-xs text-muted-foreground">{hint}</p>
+        <p className={s.value({ alert })}>{value}</p>
+        <p className={s.hint()}>{hint}</p>
       </CardContent>
     </Card>
   )

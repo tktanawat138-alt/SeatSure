@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { actions, heading, root, subtitle, titleGroup } from './page-header.styles'
 
 /** Page title with an optional description and, on the right, optional actions. */
 export function PageHeader({
@@ -11,12 +12,12 @@ export function PageHeader({
   children?: ReactNode
 }>) {
   return (
-    <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
-      <div className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
-        {description && <p className="text-sm text-muted-foreground">{description}</p>}
+    <div className={root()}>
+      <div className={titleGroup()}>
+        <h1 className={heading()}>{title}</h1>
+        {description && <p className={subtitle()}>{description}</p>}
       </div>
-      {children && <div className="flex items-center gap-2">{children}</div>}
+      {children && <div className={actions()}>{children}</div>}
     </div>
   )
 }

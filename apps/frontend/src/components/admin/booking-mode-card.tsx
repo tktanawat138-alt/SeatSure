@@ -16,6 +16,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import type { BookingMode } from '@/lib/supabase'
+import * as s from './booking-mode-card.styles'
 
 interface Props {
   mode: BookingMode
@@ -32,14 +33,14 @@ export function BookingModeCard({ mode, busy, onSwitch }: Readonly<Props>) {
           <h2>โหมดการจอง (ใช้ตอนสาธิตเท่านั้น)</h2>
         </CardTitle>
       </CardHeader>
-      <CardContent className="text-muted-foreground">
+      <CardContent className={s.body()}>
         <p>
           โหมดสาธิตบั๊กปิดการล็อกที่นั่งและการตรวจจ่ายซ้ำ เพื่อแสดงว่าชุดเทสจับปัญหาได้ คำสั่ง <Code>npm test</Code> และ{' '}
           <Code>npm run test:unsafe</Code> ตั้งโหมดเองและคืนเป็นปกติเมื่อรันจบ
         </p>
       </CardContent>
-      <CardFooter className="flex-wrap justify-between gap-3">
-        <p className="flex flex-wrap items-center gap-2">
+      <CardFooter className={s.footer()}>
+        <p className={s.current()}>
           ตอนนี้: <ModeBadge mode={mode} />
         </p>
         <SwitchModeButton mode={mode} busy={busy} onSwitch={onSwitch} />
@@ -49,9 +50,7 @@ export function BookingModeCard({ mode, busy, onSwitch }: Readonly<Props>) {
 }
 
 function Code({ children }: Readonly<{ children: ReactNode }>) {
-  return (
-    <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs whitespace-nowrap text-foreground">{children}</code>
-  )
+  return <code className={s.code()}>{children}</code>
 }
 
 function ModeBadge({ mode }: Readonly<{ mode: BookingMode }>) {
@@ -78,7 +77,7 @@ function SwitchModeButton({ mode, busy, onSwitch }: Readonly<Props>) {
       </AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogMedia className="bg-destructive/10 text-destructive">
+          <AlertDialogMedia className={s.media()}>
             <TriangleAlert aria-hidden />
           </AlertDialogMedia>
           <AlertDialogTitle>เปิดโหมดสาธิตบั๊กใช่ไหม</AlertDialogTitle>

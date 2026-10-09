@@ -18,6 +18,7 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectVa
 import { Spinner } from '@/components/ui/spinner'
 import { Textarea } from '@/components/ui/textarea'
 import type { Profile } from '@/lib/supabase'
+import * as s from './add-course-dialog.styles'
 
 export interface CourseDraft {
   title: string
@@ -27,7 +28,13 @@ export interface CourseDraft {
   price: string
 }
 
-const emptyCourse: CourseDraft = { title: '', description: '', teacherId: '', capacity: '20', price: '0' }
+const emptyCourse: CourseDraft = {
+  title: '',
+  description: '',
+  teacherId: '',
+  capacity: '20',
+  price: '0',
+}
 
 // A Radix SelectItem cannot have an empty value, so "no teacher" is this in the Select
 // and '' in the draft.
@@ -51,9 +58,9 @@ export function AddCourseDialog(props: Readonly<Props>) {
           เพิ่มคอร์ส
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-h-[calc(100svh-2rem)] overflow-y-auto sm:max-w-md">
-        <DialogHeader className="pr-8">
-          <DialogTitle className="leading-snug">เพิ่มคอร์ส</DialogTitle>
+      <DialogContent className={s.dialog()}>
+        <DialogHeader className={s.header()}>
+          <DialogTitle className={s.title()}>เพิ่มคอร์ส</DialogTitle>
           <DialogDescription>คอร์สใหม่จะเปิดรับสมัครทันทีที่เพิ่ม</DialogDescription>
         </DialogHeader>
         {/* The form lives only while the dialog is open, so it starts empty every time. */}
@@ -77,13 +84,13 @@ function AddCourseForm({ teachers, busy, onAdd, onAdded }: Readonly<Props & { on
   }
 
   return (
-    <form className="grid gap-4" onSubmit={submit}>
-      <FieldGroup className="gap-4">
+    <form className={s.form()} onSubmit={submit}>
+      <FieldGroup className={s.fields()}>
         <Field>
           <FieldLabel htmlFor={`${id}-title`}>ชื่อคอร์ส</FieldLabel>
           <Input
             id={`${id}-title`}
-            className="h-9"
+            className={s.input()}
             value={draft.title}
             onChange={(e) => change({ title: e.target.value })}
             required
@@ -95,7 +102,7 @@ function AddCourseForm({ teachers, busy, onAdd, onAdded }: Readonly<Props & { on
             value={draft.teacherId || NO_TEACHER}
             onValueChange={(value) => change({ teacherId: value === NO_TEACHER ? '' : value })}
           >
-            <SelectTrigger id={`${id}-teacher`} className="w-full data-[size=default]:h-9">
+            <SelectTrigger id={`${id}-teacher`} className={s.selectTrigger()}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -118,12 +125,12 @@ function AddCourseForm({ teachers, busy, onAdd, onAdded }: Readonly<Props & { on
             onChange={(e) => change({ description: e.target.value })}
           />
         </Field>
-        <div className="grid grid-cols-2 gap-4">
+        <div className={s.pair()}>
           <Field>
             <FieldLabel htmlFor={`${id}-capacity`}>จำนวนรับ (คน)</FieldLabel>
             <Input
               id={`${id}-capacity`}
-              className="h-9 tabular-nums"
+              className={s.input({ numeric: true })}
               type="number"
               min={1}
               value={draft.capacity}
@@ -135,7 +142,7 @@ function AddCourseForm({ teachers, busy, onAdd, onAdded }: Readonly<Props & { on
             <FieldLabel htmlFor={`${id}-price`}>ราคา (บาท)</FieldLabel>
             <Input
               id={`${id}-price`}
-              className="h-9 tabular-nums"
+              className={s.input({ numeric: true })}
               type="number"
               min={0}
               value={draft.price}
@@ -147,7 +154,7 @@ function AddCourseForm({ teachers, busy, onAdd, onAdded }: Readonly<Props & { on
       </FieldGroup>
 
       {error && (
-        <Alert variant="destructive" className="border-destructive/30 bg-destructive/5">
+        <Alert variant="destructive" className={s.errorAlert()}>
           <CircleAlert aria-hidden />
           <AlertDescription>{error}</AlertDescription>
         </Alert>

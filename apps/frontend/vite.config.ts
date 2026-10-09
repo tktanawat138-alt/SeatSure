@@ -19,7 +19,7 @@ export default defineConfig(({ mode }) => ({
         test: { name: 'unit', environment: 'node', include: ['tests/unit/**/*.test.ts'] },
       },
       {
-        // Needs the local Supabase stack (npm run setup).
+        // Needs the local Supabase stack (task up).
         extends: true,
         test: {
           name: 'integration',

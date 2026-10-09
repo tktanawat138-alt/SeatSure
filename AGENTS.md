@@ -63,8 +63,8 @@ export function StatusBadge({ tone, children }: BadgeProps & { children: ReactNo
 }
 ```
 
-- Existing feature components still hold inline classes. Extract them to `.styles.ts` when you touch the file. New code must comply from the start.
-- `apps/frontend/tests/unit/styles.test.ts` fails on literal `className="..."` in `src/ui/**` (the new layer).
+- cva does not merge conflicting Tailwind utilities (no `tailwind-merge`). Do not pass a `className` that overrides a utility already set by the style function; add a variant instead.
+- `apps/frontend/tests/unit/styles.test.ts` fails on literal `className="..."`, `cn(` or `style={{` in any `.tsx` outside `src/components/ui/`.
 - Icons come from `lucide-react`; toasts from `sonner` via `ui/sonner`.
 
 ## Source layout (Clean Architecture)

@@ -11,6 +11,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Spinner } from '@/components/ui/spinner'
 import { baht, bookingStatus, countdown, dateTime, errorText, holdIsLive, useNow } from '@/lib/format'
 import { supabase } from '@/lib/supabase'
+import * as styles from './MyBookingsPage.styles'
 
 async function fetchMyBookings() {
   const { data, error } = await supabase
@@ -75,7 +76,7 @@ export default function MyBookingsPage() {
 
       {/* The list is already on screen, so a failed refresh is shown above it instead of replacing it. */}
       {error && (
-        <div className="mb-4">
+        <div className={styles.refreshError()}>
           <PageError message={error} />
         </div>
       )}
@@ -91,7 +92,7 @@ export default function MyBookingsPage() {
           </Button>
         </EmptyState>
       ) : (
-        <ul className="space-y-3">
+        <ul className={styles.list()}>
           {bookings.map((booking) => (
             <li key={booking.id}>
               <BookingCard
@@ -105,7 +106,7 @@ export default function MyBookingsPage() {
         </ul>
       )}
 
-      <p className="mt-6 text-xs text-muted-foreground">
+      <p className={styles.footnote()}>
         การชำระเงินในระบบสาธิตนี้เป็นการจำลอง ไม่มีการตัดเงินจริง
       </p>
     </>
@@ -128,19 +129,19 @@ function BookingCard({
 
   return (
     <Card>
-      <CardContent className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="min-w-0 space-y-1">
-          <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
-            <h2 className="text-base font-medium">{booking.courses.title}</h2>
+      <CardContent className={styles.cardContent()}>
+        <div className={styles.info()}>
+          <div className={styles.titleRow()}>
+            <h2 className={styles.title()}>{booking.courses.title}</h2>
             <StatusBadge tone={status.tone}>{status.text}</StatusBadge>
           </div>
-          <p className="text-muted-foreground">
+          <p className={styles.meta()}>
             ผู้เรียน {booking.student_name} · จองเมื่อ {dateTime(booking.created_at)}
           </p>
         </div>
 
         {booking.status === 'paid' && (
-          <Button variant="outline" className="sm:shrink-0" asChild>
+          <Button variant="outline" className={styles.receiptButton()} asChild>
             <Link to={`/receipt/${booking.id}`}>
               <ReceiptText data-icon="inline-start" aria-hidden />
               ดูใบเสร็จ
@@ -148,9 +149,9 @@ function BookingCard({
           </Button>
         )}
         {holdIsLive(booking, now) && (
-          <div className="flex flex-col gap-2 sm:shrink-0 sm:flex-row sm:items-center sm:gap-4">
-            <p className="flex items-center gap-1.5 text-muted-foreground tabular-nums">
-              <Clock className="size-4 shrink-0" aria-hidden />
+          <div className={styles.payBox()}>
+            <p className={styles.countdown()}>
+              <Clock className={styles.countdownIcon()} aria-hidden />
               เหลือเวลา {countdown(booking.hold_expires_at, now)} นาที
             </p>
             <Button size="lg" disabled={paying} aria-busy={paying} onClick={onPay}>
@@ -163,7 +164,7 @@ function BookingCard({
 
       {refund && (
         <CardContent>
-          <Alert variant="destructive" className="border-destructive/30 bg-destructive/5">
+          <Alert variant="destructive" className={styles.refundAlert()}>
             <CircleAlert aria-hidden />
             <AlertTitle>ไม่ได้ที่นั่ง รอคืนเงิน</AlertTitle>
             <AlertDescription>

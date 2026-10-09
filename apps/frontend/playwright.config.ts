@@ -1,6 +1,6 @@
 import { defineConfig, devices } from '@playwright/test'
 
-// Needs local Supabase + seed data: npm run setup
+// Needs local Supabase + seed data: task up
 export default defineConfig({
   testDir: 'tests/e2e',
   fullyParallel: true,

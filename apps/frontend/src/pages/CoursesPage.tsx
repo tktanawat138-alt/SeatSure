@@ -7,6 +7,7 @@ import { PageHeader } from '@/components/page-header'
 import { EmptyState, PageError, PageLoading } from '@/components/page-state'
 import { useAuth } from '@/lib/auth'
 import { errorText, holdsSeat } from '@/lib/format'
+import * as styles from './CoursesPage.styles'
 import { fetchCourses, supabase, type Booking, type Course } from '@/lib/supabase'
 
 export default function CoursesPage() {
@@ -79,9 +80,9 @@ export default function CoursesPage() {
           description="เมื่อโรงเรียนเปิดคอร์สใหม่ คอร์สจะแสดงที่หน้านี้"
         />
       ) : (
-        <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <ul className={styles.grid()}>
           {courses.map((course) => (
-            <li key={course.id} className="flex">
+            <li key={course.id} className={styles.item()}>
               <CourseCard
                 course={course}
                 mine={myBookings.find((b) => b.course_id === course.id && holdsSeat(b, now))}

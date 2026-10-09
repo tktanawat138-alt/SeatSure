@@ -8,14 +8,7 @@ import { Switch } from '@/components/ui/switch'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { baht } from '@/lib/format'
 import type { Course } from '@/lib/supabase'
-import { cn } from '@/lib/utils'
-
-// Below lg the same table is restyled into one stacked block per course, so every control
-// exists once in the page. A stacked cell shows its column name from data-label.
-const stackedRow =
-  'max-lg:grid max-lg:gap-x-10 max-lg:gap-y-1.5 max-lg:px-4 max-lg:py-4 max-lg:first:pt-1 max-lg:hover:bg-transparent sm:max-lg:grid-cols-2'
-const stackedCell =
-  'max-lg:flex max-lg:min-h-8 max-lg:items-center max-lg:justify-between max-lg:gap-3 max-lg:p-0 max-lg:before:text-muted-foreground max-lg:before:content-[attr(data-label)]'
+import * as s from './course-table.styles'
 
 interface Actions {
   busy: boolean
@@ -26,28 +19,28 @@ interface Actions {
 
 export function CourseTable({ courses, ...actions }: Readonly<{ courses: Course[] } & Actions>) {
   return (
-    <Card className="pb-0">
+    <Card className={s.card()}>
       <CardHeader>
         <CardTitle>
           <h2>คอร์สทั้งหมด</h2>
         </CardTitle>
         <CardDescription>แก้จำนวนรับแล้วกดบันทึก ส่วนสวิตช์รับสมัครมีผลทันที</CardDescription>
       </CardHeader>
-      <CardContent className="px-0">
-        <Table className="max-lg:block">
-          <TableHeader className="bg-muted/50 max-lg:sr-only [&_th]:text-muted-foreground [&_tr]:border-t">
-            <TableRow className="hover:bg-transparent">
-              <TableHead className="pl-4">คอร์ส</TableHead>
+      <CardContent className={s.content()}>
+        <Table className={s.table()}>
+          <TableHeader className={s.head()}>
+            <TableRow className={s.headRow()}>
+              <TableHead className={s.headCell({ edge: 'start' })}>คอร์ส</TableHead>
               <TableHead>ที่นั่งที่จองแล้ว</TableHead>
               <TableHead>ราคา</TableHead>
               <TableHead>จำนวนรับ</TableHead>
               <TableHead>รับสมัคร</TableHead>
-              <TableHead className="pr-4">
-                <span className="sr-only">รายชื่อ</span>
+              <TableHead className={s.headCell({ edge: 'end' })}>
+                <span className={s.srOnly()}>รายชื่อ</span>
               </TableHead>
             </TableRow>
           </TableHeader>
-          <TableBody className="max-lg:block">
+          <TableBody className={s.body()}>
             {courses.map((course) => (
               <CourseRow key={course.id} course={course} {...actions} />
             ))}
@@ -69,32 +62,32 @@ function CourseRow({
   const open = course.registration_open
 
   return (
-    <TableRow className={stackedRow}>
-      <TableCell className="whitespace-normal max-lg:col-span-full max-lg:p-0 lg:pl-4">
-        <p id={titleId} className="font-medium">
+    <TableRow className={s.row()}>
+      <TableCell className={s.cell({ kind: 'title' })}>
+        <p id={titleId} className={s.name()}>
           {course.title}
         </p>
-        <p className="text-muted-foreground">{course.teacher_name ?? 'ยังไม่ระบุผู้สอน'}</p>
+        <p className={s.muted()}>{course.teacher_name ?? 'ยังไม่ระบุผู้สอน'}</p>
       </TableCell>
 
-      <TableCell data-label="ที่นั่งที่จองแล้ว" className={stackedCell}>
-        <div className="flex flex-wrap items-center gap-2 max-lg:justify-end">
-          <span className="tabular-nums">
+      <TableCell data-label="ที่นั่งที่จองแล้ว" className={s.cell({ kind: 'field' })}>
+        <div className={s.seats()}>
+          <span className={s.seatCount()}>
             {course.seats_taken} / {course.capacity}
           </span>
           <SeatNote over={course.seats_taken - course.capacity} />
         </div>
       </TableCell>
 
-      <TableCell data-label="ราคา" className={cn(stackedCell, 'tabular-nums')}>
+      <TableCell data-label="ราคา" className={s.cell({ kind: 'number' })}>
         {baht(course.price)}
       </TableCell>
 
-      <TableCell data-label="จำนวนรับ" className={stackedCell}>
-        <form className="flex items-center gap-2" onSubmit={(event) => onSaveCapacity(event, course)}>
+      <TableCell data-label="จำนวนรับ" className={s.cell({ kind: 'field' })}>
+        <form className={s.capacityForm()} onSubmit={(event) => onSaveCapacity(event, course)}>
           <Input
             key={course.capacity}
-            className="h-7 w-20 tabular-nums"
+            className={s.capacityInput()}
             name="capacity"
             type="number"
             min={1}
@@ -108,23 +101,23 @@ function CourseRow({
         </form>
       </TableCell>
 
-      <TableCell data-label="รับสมัคร" className={stackedCell}>
-        <div className="flex items-center gap-2">
+      <TableCell data-label="รับสมัคร" className={s.cell({ kind: 'field' })}>
+        <div className={s.toggle()}>
           <Switch
             checked={open}
             disabled={busy}
             onCheckedChange={() => onToggleRegistration(course)}
             aria-label={`เปิดรับสมัคร ${course.title}`}
           />
-          <span className={cn('min-w-11', !open && 'text-muted-foreground')}>{open ? 'เปิดรับ' : 'ปิดรับ'}</span>
+          <span className={s.toggleText({ open })}>{open ? 'เปิดรับ' : 'ปิดรับ'}</span>
         </div>
       </TableCell>
 
-      <TableCell className="max-lg:col-span-full max-lg:p-0 max-lg:pt-1 lg:pr-4 lg:text-right">
+      <TableCell className={s.cell({ kind: 'action' })}>
         <Button
           variant="outline"
           size="sm"
-          className="max-lg:h-8 max-lg:w-full"
+          className={s.rosterButton()}
           aria-haspopup="dialog"
           aria-describedby={titleId}
           onClick={() => onOpenRoster(course)}

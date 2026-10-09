@@ -7,6 +7,18 @@ import { Button } from '@/components/ui/button'
 import { Card, CardAction, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { baht } from '@/lib/format'
 import type { Booking, Course } from '@/lib/supabase'
+import {
+  actions,
+  bookButton,
+  card,
+  content,
+  header,
+  meter,
+  price,
+  teacher,
+  teacherIcon,
+  unavailable,
+} from './course-card.styles'
 
 interface CourseCardProps {
   course: Course
@@ -20,27 +32,27 @@ export function CourseCard({ course, mine, onBook }: Readonly<CourseCardProps>) 
   const titleId = useId()
 
   return (
-    <Card className="w-full">
-      <CardHeader className="gap-x-3">
+    <Card className={card()}>
+      <CardHeader className={header()}>
         <CardTitle>
           <h2 id={titleId}>{course.title}</h2>
         </CardTitle>
-        <CardDescription className="flex items-center gap-1.5">
-          <UserRound className="size-3.5 shrink-0" aria-hidden />
+        <CardDescription className={teacher()}>
+          <UserRound className={teacherIcon()} aria-hidden />
           {course.teacher_name ? `สอนโดย ${course.teacher_name}` : 'ยังไม่ระบุผู้สอน'}
         </CardDescription>
         {/* Same line height as the title, so the price sits on the title's baseline. */}
-        <CardAction className="text-lg leading-5.5 font-semibold tabular-nums">{baht(course.price)}</CardAction>
+        <CardAction className={price()}>{baht(course.price)}</CardAction>
       </CardHeader>
 
-      <CardContent className="flex flex-1 flex-col gap-4">
+      <CardContent className={content()}>
         {course.description && <p>{course.description}</p>}
-        <SeatMeter taken={course.seats_taken} capacity={course.capacity} className="mt-auto" />
+        <SeatMeter taken={course.seats_taken} capacity={course.capacity} className={meter()} />
       </CardContent>
 
       {/* min-h-9 is the height of the booking button, so the footers line up across a row. */}
       <CardFooter>
-        <div className="flex min-h-9 w-full flex-wrap items-center justify-between gap-2">
+        <div className={actions()}>
           <CourseAction course={course} mine={mine} onBook={onBook} titleId={titleId} />
         </div>
       </CardFooter>
@@ -79,7 +91,7 @@ function CourseAction({ course, mine, onBook, titleId }: Readonly<CourseCardProp
   if (!course.registration_open) return <Unavailable>ปิดรับสมัคร</Unavailable>
   if (course.seats_taken >= course.capacity) return <Unavailable>เต็มแล้ว</Unavailable>
   return (
-    <Button size="lg" className="w-full" aria-describedby={titleId} onClick={onBook}>
+    <Button size="lg" className={bookButton()} aria-describedby={titleId} onClick={onBook}>
       จองที่นั่ง
     </Button>
   )
@@ -88,7 +100,7 @@ function CourseAction({ course, mine, onBook, titleId }: Readonly<CourseCardProp
 /** Sits where the booking button would be, for a course that cannot be booked right now. */
 function Unavailable({ children }: Readonly<{ children: ReactNode }>) {
   return (
-    <p className="flex h-9 w-full items-center justify-center rounded-lg border border-dashed font-medium text-muted-foreground">
+    <p className={unavailable()}>
       {children}
     </p>
   )
