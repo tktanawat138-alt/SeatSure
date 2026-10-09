@@ -1,15 +1,23 @@
-import { useCallback, useEffect, useState, type FormEvent } from 'react'
-import { Link, useNavigate } from 'react-router'
-import { useAuth } from '../lib/auth'
-import { baht, errorText, holdsSeat } from '../lib/format'
-import { fetchCourses, supabase, type Booking, type Course } from '../lib/supabase'
+import { useCallback, useEffect, useState, type SubmitEvent } from 'react'
+import { BookOpen } from 'lucide-react'
+import { useNavigate } from 'react-router'
+import { BookSeatDialog } from '@/components/booking/book-seat-dialog'
+import { CourseCard } from '@/components/booking/course-card'
+import { PageHeader } from '@/components/page-header'
+import { EmptyState, PageError, PageLoading } from '@/components/page-state'
+import { useAuth } from '@/lib/auth'
+import { errorText, holdsSeat } from '@/lib/format'
+import { fetchCourses, supabase, type Booking, type Course } from '@/lib/supabase'
 
 export default function CoursesPage() {
   const { profile } = useAuth()
   const navigate = useNavigate()
   const [courses, setCourses] = useState<Course[] | null>(null)
   const [myBookings, setMyBookings] = useState<Booking[]>([])
-  const [openCourseId, setOpenCourseId] = useState<string | null>(null)
+  // The course in the booking dialog. It stays set after the dialog closes,
+  // so the dialog still has its content while it animates out.
+  const [openCourse, setOpenCourse] = useState<Course | null>(null)
+  const [dialogOpen, setDialogOpen] = useState(false)
   const [studentName, setStudentName] = useState(profile?.full_name ?? '')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -31,7 +39,13 @@ export default function CoursesPage() {
     void load()
   }, [load])
 
-  async function bookSeat(event: FormEvent, course: Course) {
+  function openDialog(course: Course) {
+    setOpenCourse(course)
+    setDialogOpen(true)
+    setError('')
+  }
+
+  async function bookSeat(event: SubmitEvent, course: Course) {
     event.preventDefault()
     setBusy(true)
     setError('')
@@ -48,91 +62,46 @@ export default function CoursesPage() {
     navigate('/bookings')
   }
 
-  /** What the parent can do with one course: open their booking, see why it is unavailable, or book it. */
-  function renderAction(course: Course, mine: Booking | undefined) {
-    if (mine?.status === 'paid') {
-      return (
-        <div className="row">
-          <span className="tag ok">ชำระแล้ว</span>
-          <Link to={`/receipt/${mine.id}`}>ดูใบเสร็จ</Link>
-        </div>
-      )
-    }
-    if (mine) {
-      return (
-        <div className="row">
-          <span className="tag warn">จองไว้แล้ว รอชำระเงิน</span>
-          <Link to="/bookings">ไปชำระเงิน</Link>
-        </div>
-      )
-    }
-    if (!course.registration_open) return <span className="tag muted">ปิดรับสมัคร</span>
-    if (course.seats_taken >= course.capacity) return <span className="tag muted">เต็มแล้ว</span>
-    if (openCourseId !== course.id) {
-      return (
-        <button
-          className="primary"
-          onClick={() => {
-            setOpenCourseId(course.id)
-            setError('')
-          }}
-        >
-          จองที่นั่ง
-        </button>
-      )
-    }
-    return (
-      <form className="stack" onSubmit={(event) => bookSeat(event, course)}>
-        <label>
-          ชื่อผู้เรียน
-          <input value={studentName} onChange={(e) => setStudentName(e.target.value)} required />
-        </label>
-        <p className="muted">ระบบจะล็อกที่นั่งให้ 10 นาทีเพื่อรอชำระเงิน</p>
-        {error && <p className="error">{error}</p>}
-        <div className="row">
-          <button className="primary" disabled={busy}>
-            ยืนยันการจอง
-          </button>
-          <button type="button" onClick={() => setOpenCourseId(null)}>
-            ยกเลิก
-          </button>
-        </div>
-      </form>
-    )
-  }
-
-  if (!courses) return <p className="page-message">{error || 'กำลังโหลด…'}</p>
+  if (!courses) return error ? <PageError message={error} /> : <PageLoading />
 
   const now = Date.now()
   return (
     <>
-      <h1>คอร์สเรียนเสริม</h1>
-      <div className="grid">
-        {courses.map((course) => {
-          const seatsLeft = course.capacity - course.seats_taken
-          const mine = myBookings.find((b) => b.course_id === course.id && holdsSeat(b, now))
+      <PageHeader
+        title="คอร์สเรียนเสริม"
+        description="เลือกคอร์สที่สนใจแล้วจองที่นั่ง จากนั้นชำระเงินภายใน 10 นาทีเพื่อยืนยันที่นั่ง"
+      />
 
-          return (
-            <article className="card stack" key={course.id}>
-              <div className="card-head">
-                <h2>{course.title}</h2>
-                <strong>{baht(course.price)}</strong>
-              </div>
-              <p className="muted">
-                {course.teacher_name ? `สอนโดย ${course.teacher_name}` : 'ยังไม่ระบุผู้สอน'}
-              </p>
-              {course.description && <p>{course.description}</p>}
-              <p>
-                {seatsLeft > 0
-                  ? `เหลือ ${seatsLeft} จาก ${course.capacity} ที่นั่ง`
-                  : `เต็มแล้ว (รับ ${course.capacity} คน)`}
-              </p>
+      {courses.length === 0 ? (
+        <EmptyState
+          icon={BookOpen}
+          title="ยังไม่มีคอร์สเรียน"
+          description="เมื่อโรงเรียนเปิดคอร์สใหม่ คอร์สจะแสดงที่หน้านี้"
+        />
+      ) : (
+        <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {courses.map((course) => (
+            <li key={course.id} className="flex">
+              <CourseCard
+                course={course}
+                mine={myBookings.find((b) => b.course_id === course.id && holdsSeat(b, now))}
+                onBook={() => openDialog(course)}
+              />
+            </li>
+          ))}
+        </ul>
+      )}
 
-              {renderAction(course, mine)}
-            </article>
-          )
-        })}
-      </div>
+      <BookSeatDialog
+        course={openCourse}
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        studentName={studentName}
+        onStudentNameChange={setStudentName}
+        busy={busy}
+        error={error}
+        onSubmit={bookSeat}
+      />
     </>
   )
 }

@@ -1,7 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { CalendarX2, CircleAlert, Clock, ReceiptText } from 'lucide-react'
 import { Link, useNavigate } from 'react-router'
-import { baht, bookingStatus, countdown, dateTime, errorText, holdIsLive, useNow } from '../lib/format'
-import { supabase } from '../lib/supabase'
+import { toast } from 'sonner'
+import { PageHeader } from '@/components/page-header'
+import { EmptyState, PageError, PageLoading } from '@/components/page-state'
+import { StatusBadge } from '@/components/status-badge'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent } from '@/components/ui/card'
+import { Spinner } from '@/components/ui/spinner'
+import { baht, bookingStatus, countdown, dateTime, errorText, holdIsLive, useNow } from '@/lib/format'
+import { supabase } from '@/lib/supabase'
 
 async function fetchMyBookings() {
   const { data, error } = await supabase
@@ -50,7 +59,7 @@ export default function MyBookingsPage() {
     })
     setPayingId(null)
     if (error) {
-      setError(errorText(error))
+      toast.error(errorText(error))
     } else if (payment.status === 'succeeded') {
       navigate(`/receipt/${booking.id}`)
       return
@@ -58,60 +67,112 @@ export default function MyBookingsPage() {
     void load()
   }
 
-  if (!bookings) return <p className="page-message">{error || 'กำลังโหลด…'}</p>
+  if (!bookings) return error ? <PageError message={error} /> : <PageLoading />
 
   return (
     <>
-      <h1>การจองของฉัน</h1>
-      {error && <p className="error">{error}</p>}
-      {bookings.length === 0 && (
-        <p className="muted">
-          ยังไม่มีการจอง <Link to="/">ดูคอร์สที่เปิดรับ</Link>
-        </p>
+      <PageHeader title="การจองของฉัน" description="ดูสถานะการจอง ชำระเงิน และเปิดใบเสร็จได้จากหน้านี้" />
+
+      {/* The list is already on screen, so a failed refresh is shown above it instead of replacing it. */}
+      {error && (
+        <div className="mb-4">
+          <PageError message={error} />
+        </div>
       )}
 
-      <div className="stack">
-        {bookings.map((booking) => {
-          const status = bookingStatus(booking, now)
-          const refund = booking.payments.find((p) => p.status === 'refund_due')
+      {bookings.length === 0 ? (
+        <EmptyState
+          icon={CalendarX2}
+          title="ยังไม่มีการจอง"
+          description="เมื่อจองที่นั่งแล้ว รายการจองจะแสดงที่หน้านี้"
+        >
+          <Button asChild>
+            <Link to="/">ดูคอร์สที่เปิดรับ</Link>
+          </Button>
+        </EmptyState>
+      ) : (
+        <ul className="space-y-3">
+          {bookings.map((booking) => (
+            <li key={booking.id}>
+              <BookingCard
+                booking={booking}
+                now={now}
+                paying={payingId === booking.id}
+                onPay={() => payFor(booking)}
+              />
+            </li>
+          ))}
+        </ul>
+      )}
 
-          return (
-            <article className="card booking" key={booking.id}>
-              <div>
-                <h2>{booking.courses.title}</h2>
-                <p className="muted">
-                  ผู้เรียน {booking.student_name} · จองเมื่อ {dateTime(booking.created_at)}
-                </p>
-                {refund && (
-                  <p className="error">
-                    เงิน {baht(refund.amount)} มาถึงหลังหมดเวลาและคอร์สเต็มแล้ว
-                    ระบบบันทึกรายการนี้ไว้เพื่อคืนเงิน (เลขที่ {refund.receipt_no})
-                  </p>
-                )}
-              </div>
-
-              <div className="booking-side">
-                <span className={`tag ${status.tone}`}>{status.text}</span>
-                {booking.status === 'paid' && <Link to={`/receipt/${booking.id}`}>ดูใบเสร็จ</Link>}
-                {holdIsLive(booking, now) && (
-                  <>
-                    <span className="muted">เหลือเวลา {countdown(booking.hold_expires_at, now)} นาที</span>
-                    <button
-                      className="primary"
-                      disabled={payingId === booking.id}
-                      onClick={() => payFor(booking)}
-                    >
-                      ชำระเงิน {baht(booking.courses.price)}
-                    </button>
-                  </>
-                )}
-              </div>
-            </article>
-          )
-        })}
-      </div>
-
-      <p className="muted">การชำระเงินในระบบสาธิตนี้เป็นการจำลอง ไม่มีการตัดเงินจริง</p>
+      <p className="mt-6 text-xs text-muted-foreground">
+        การชำระเงินในระบบสาธิตนี้เป็นการจำลอง ไม่มีการตัดเงินจริง
+      </p>
     </>
+  )
+}
+
+function BookingCard({
+  booking,
+  now,
+  paying,
+  onPay,
+}: Readonly<{
+  booking: BookingRow
+  now: number
+  paying: boolean
+  onPay: () => void
+}>) {
+  const status = bookingStatus(booking, now)
+  const refund = booking.payments.find((p) => p.status === 'refund_due')
+
+  return (
+    <Card>
+      <CardContent className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0 space-y-1">
+          <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
+            <h2 className="text-base font-medium">{booking.courses.title}</h2>
+            <StatusBadge tone={status.tone}>{status.text}</StatusBadge>
+          </div>
+          <p className="text-muted-foreground">
+            ผู้เรียน {booking.student_name} · จองเมื่อ {dateTime(booking.created_at)}
+          </p>
+        </div>
+
+        {booking.status === 'paid' && (
+          <Button variant="outline" className="sm:shrink-0" asChild>
+            <Link to={`/receipt/${booking.id}`}>
+              <ReceiptText data-icon="inline-start" aria-hidden />
+              ดูใบเสร็จ
+            </Link>
+          </Button>
+        )}
+        {holdIsLive(booking, now) && (
+          <div className="flex flex-col gap-2 sm:shrink-0 sm:flex-row sm:items-center sm:gap-4">
+            <p className="flex items-center gap-1.5 text-muted-foreground tabular-nums">
+              <Clock className="size-4 shrink-0" aria-hidden />
+              เหลือเวลา {countdown(booking.hold_expires_at, now)} นาที
+            </p>
+            <Button size="lg" disabled={paying} aria-busy={paying} onClick={onPay}>
+              {paying && <Spinner data-icon="inline-start" aria-hidden />}
+              ชำระเงิน {baht(booking.courses.price)}
+            </Button>
+          </div>
+        )}
+      </CardContent>
+
+      {refund && (
+        <CardContent>
+          <Alert variant="destructive" className="border-destructive/30 bg-destructive/5">
+            <CircleAlert aria-hidden />
+            <AlertTitle>ไม่ได้ที่นั่ง รอคืนเงิน</AlertTitle>
+            <AlertDescription>
+              เงิน {baht(refund.amount)} มาถึงหลังหมดเวลาและคอร์สเต็มแล้ว
+              ระบบบันทึกรายการนี้ไว้เพื่อคืนเงิน (เลขที่ {refund.receipt_no})
+            </AlertDescription>
+          </Alert>
+        </CardContent>
+      )}
+    </Card>
   )
 }
