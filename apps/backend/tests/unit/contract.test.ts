@@ -183,6 +183,47 @@ describe('small request bodies', () => {
   ])('BookSeatBody rejects %s', (_n, bad) => expect(BookSeatBody.safeParse(bad).success).toBe(false))
 })
 
+describe('request bounds (security review L1)', () => {
+  const long = (n: number) => 'x'.repeat(n)
+  it.each([
+    ['capacity 1000', { ...create, capacity: 1000 }],
+    ['price 1000000', { ...create, price: 1_000_000 }],
+    ['price with 2 decimals', { ...create, price: 1234.56 }],
+    ['title of 200 characters', { ...create, title: long(200) }],
+    ['description of 2000 characters', { ...create, description: long(2000) }],
+  ])('CreateCourseBody accepts %s', (_n, ok) => expect(CreateCourseBody.safeParse(ok).success).toBe(true))
+  it.each([
+    ['capacity 1001', { ...create, capacity: 1001 }],
+    ['capacity 3000000000', { ...create, capacity: 3_000_000_000 }],
+    ['price 1000000.01', { ...create, price: 1_000_000.01 }],
+    ['price 1e9', { ...create, price: 1e9 }],
+    ['price with 3 decimals', { ...create, price: 12.345 }],
+    ['title of 201 characters', { ...create, title: long(201) }],
+    ['description of 2001 characters', { ...create, description: long(2001) }],
+  ])('CreateCourseBody rejects %s', (_n, bad) => expect(CreateCourseBody.safeParse(bad).success).toBe(false))
+  it('UpdateCourseBody rejects capacity 1001 and accepts 1000', () => {
+    expect(UpdateCourseBody.safeParse({ capacity: 1001 }).success).toBe(false)
+    expect(UpdateCourseBody.safeParse({ capacity: 1000 }).success).toBe(true)
+  })
+  it('BookSeatBody bounds studentName at 200 characters', () => {
+    expect(BookSeatBody.safeParse({ courseId: UUID, studentName: long(200) }).success).toBe(true)
+    expect(BookSeatBody.safeParse({ courseId: UUID, studentName: long(201) }).success).toBe(false)
+  })
+  it('CancelCourseBody bounds reason at 1000 characters', () => {
+    expect(CancelCourseBody.safeParse({ reason: long(1000) }).success).toBe(true)
+    expect(CancelCourseBody.safeParse({ reason: long(1001) }).success).toBe(false)
+  })
+  it('LoginBody bounds email at 254 and password at 200 characters', () => {
+    const email = `${long(246)}@test.co`
+    expect(email).toHaveLength(254)
+    expect(LoginBody.safeParse({ email, password: long(200) }).success).toBe(true)
+    expect(LoginBody.safeParse({ email: `x${email}`, password: 'pw' }).success).toBe(false)
+    expect(LoginBody.safeParse({ email: 'a@b.co', password: long(201) }).success).toBe(false)
+  })
+  it('bounds apply after trimming: a 200 character title with surrounding spaces is accepted', () =>
+    expect(CreateCourseBody.safeParse({ ...create, title: `  ${long(200)}  ` }).success).toBe(true))
+})
+
 describe('Envelope', () => {
   const schema = Envelope(z.object({ n: z.number() }))
   it('accepts success with data', () => expect(schema.safeParse({ success: true, data: { n: 1 } }).success).toBe(true))

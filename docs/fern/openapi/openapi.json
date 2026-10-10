@@ -421,7 +421,7 @@
         ],
         "operationId": "createCourse",
         "summary": "Submit a course for approval",
-        "description": "Teachers only. The course is created for the caller with `approval_status=pending` and `registration_open=false`; it stays hidden from parents until admin01 approves it.\n\nTitle is trimmed and must not be empty, `capacity` is a whole number of at least 1, `price` is 0 or more, and `endsAt` must be after `startsAt` (ISO 8601 date-times).\n\nRequires a bearer token with role: teacher.\n\nErrors (the `message` of the failure envelope):\n\n- `400` `Validation failed`: The body or query does not match the schema; `errors` lists the fields.\n- `400` `invalid_course_schedule`: The schedule ends before it starts.\n- `401` `not_authenticated`: Missing, invalid or expired access token.\n- `403` `forbidden`: The role may not do this.",
+        "description": "Teachers only. The course is created for the caller with `approval_status=pending` and `registration_open=false`; it stays hidden from parents until admin01 approves it.\n\nTitle is trimmed, must not be empty and has at most 200 characters; `description` at most 2000. `capacity` is a whole number from 1 to 1000, `price` is 0 to 1,000,000 with at most 2 decimals, and `endsAt` must be after `startsAt` (ISO 8601 date-times).\n\nRequires a bearer token with role: teacher.\n\nErrors (the `message` of the failure envelope):\n\n- `400` `Validation failed`: The body or query does not match the schema; `errors` lists the fields.\n- `400` `invalid_course_schedule`: The schedule ends before it starts.\n- `401` `not_authenticated`: Missing, invalid or expired access token.\n- `403` `forbidden`: The role may not do this.",
         "requestBody": {
           "required": true,
           "content": {
@@ -1692,7 +1692,8 @@
           },
           "studentName": {
             "type": "string",
-            "minLength": 1
+            "minLength": 1,
+            "maxLength": 200
           }
         },
         "required": [
@@ -1705,7 +1706,8 @@
         "properties": {
           "reason": {
             "type": "string",
-            "minLength": 1
+            "minLength": 1,
+            "maxLength": 1000
           }
         },
         "required": [
@@ -1811,18 +1813,23 @@
         "properties": {
           "title": {
             "type": "string",
-            "minLength": 1
+            "minLength": 1,
+            "maxLength": 200
           },
           "description": {
-            "type": "string"
+            "type": "string",
+            "maxLength": 2000
           },
           "capacity": {
             "type": "integer",
-            "minimum": 1
+            "minimum": 1,
+            "maximum": 1000
           },
           "price": {
             "type": "number",
-            "minimum": 0
+            "minimum": 0,
+            "maximum": 1000000,
+            "multipleOf": 0.01
           },
           "startsAt": {
             "type": "string",
@@ -1887,11 +1894,13 @@
         "properties": {
           "email": {
             "type": "string",
-            "minLength": 1
+            "minLength": 1,
+            "maxLength": 254
           },
           "password": {
             "type": "string",
-            "minLength": 1
+            "minLength": 1,
+            "maxLength": 200
           }
         },
         "required": [
@@ -2159,7 +2168,8 @@
         "properties": {
           "capacity": {
             "type": "integer",
-            "minimum": 1
+            "minimum": 1,
+            "maximum": 1000
           },
           "registrationOpen": {
             "type": "boolean"

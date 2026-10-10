@@ -35,6 +35,22 @@ through the `@contract` alias.
 Request bodies are parsed with the endpoint's zod schema. A failure is **HTTP 400** (not 422) with `message: "Validation failed"`
 and the `errors` list. Malformed JSON is `400 Invalid JSON body`. Unknown routes are `404 Not found`.
 
+Every field has an upper bound, so oversized input is a 400 instead of a database error: `capacity` 1 to 1000, `price` 0 to
+1,000,000 with at most 2 decimals, `title` 200 characters, `description` 2000, `studentName` 200, cancellation `reason` 1000,
+`email` 254, `password` 200 (strings are counted after trimming, where the schema trims).
+
+## Response headers
+
+- No `X-Powered-By` header.
+- `X-Content-Type-Options: nosniff` on every response.
+- `Cache-Control: no-store` on `/auth/*` and `/me`, which carry tokens or the profile.
+
+## Security log
+
+The API writes one JSON line to stdout for each failed login, each 401 and 403, and each admin course action (review,
+capacity or registration change, cancel). It never writes tokens, passwords, request bodies or emails in clear. Fields and
+events: [Backend, Security logging](/backend#security-logging).
+
 ## Status mapping
 
 `apps/backend/src/adaptor/http/error-handler.ts` maps a `DomainError` code to a status:

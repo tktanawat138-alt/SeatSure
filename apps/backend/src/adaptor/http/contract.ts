@@ -110,19 +110,21 @@ export const Me = z.object({
 })
 
 // Requests.
-export const LoginBody = z.object({ email: nonEmpty, password: nonEmpty })
+// Upper bounds keep oversized input a 400 instead of a database error (500) or a stored blob.
+export const LoginBody = z.object({ email: nonEmpty.max(254), password: nonEmpty.max(200) })
 export const RefreshBody = z.object({ refreshToken: nonEmpty })
 
-const capacity = z.number().int().min(1)
+const capacity = z.number().int().min(1).max(1000)
 const endsAfterStarts = (v: { startsAt: string; endsAt: string }) => Date.parse(v.endsAt) > Date.parse(v.startsAt)
 const endsAfterStartsIssue = { message: 'endsAt must be after startsAt', path: ['endsAt'] }
 
 export const CreateCourseBody = z
   .object({
-    title: nonEmpty,
-    description: z.string(),
+    title: nonEmpty.max(200),
+    description: z.string().max(2000),
     capacity,
-    price: z.number().finite().min(0),
+    // numeric(10,2) in the database: baht with at most 2 decimals.
+    price: z.number().finite().min(0).max(1_000_000).multipleOf(0.01),
     startsAt: isoDateTime,
     endsAt: isoDateTime,
   })
@@ -146,8 +148,8 @@ export const UpdateCourseBody = z
   .refine((v) => v.startsAt === undefined || v.endsAt === undefined || endsAfterStarts({ startsAt: v.startsAt, endsAt: v.endsAt }), endsAfterStartsIssue)
 
 export const ApprovalBody = z.object({ approved: z.boolean() })
-export const CancelCourseBody = z.object({ reason: nonEmpty })
-export const BookSeatBody = z.object({ courseId: z.uuid(), studentName: nonEmpty })
+export const CancelCourseBody = z.object({ reason: nonEmpty.max(1000) })
+export const BookSeatBody = z.object({ courseId: z.uuid(), studentName: nonEmpty.max(200) })
 
 export const Envelope = <T extends z.ZodType>(data: T) =>
   z.discriminatedUnion('success', [

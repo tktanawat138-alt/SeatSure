@@ -35,7 +35,7 @@ export const coursesEndpoints: Endpoint[] = [
     description: [
       'Teachers only. The course is created for the caller with `approval_status=pending` and `registration_open=false`; it stays hidden from parents until admin01 approves it.',
       '',
-      'Title is trimmed and must not be empty, `capacity` is a whole number of at least 1, `price` is 0 or more, and `endsAt` must be after `startsAt` (ISO 8601 date-times).',
+      'Title is trimmed, must not be empty and has at most 200 characters; `description` at most 2000. `capacity` is a whole number from 1 to 1000, `price` is 0 to 1,000,000 with at most 2 decimals, and `endsAt` must be after `startsAt` (ISO 8601 date-times).',
     ].join('\n'),
     tag: 'Courses',
     auth: ['teacher'],
