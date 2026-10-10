@@ -96,6 +96,19 @@ describe('submitProof', () => {
     expect([...fake.objects]).toEqual([second.path])
   })
 
+  it('submitProof replacing after the booking stopped being held rejects booking_not_payable, removes the new object, keeps the old', async () => {
+    const { fake, payments } = setup()
+    await payments.submitProof(parent, 'b1', png())
+    const first = fake.proofs.get('b1')!
+    fake.state.replaceFindsNoRow = true
+
+    expect(await codeOf(payments.submitProof(parent, 'b1', png()))).toBe('booking_not_payable')
+
+    expect(fake.proofStorage.uploads).toHaveLength(2)
+    expect(fake.proofs.get('b1')).toEqual(first)
+    expect([...fake.objects]).toEqual([first.path])
+  })
+
   it('submitProof replacing when the DB write fails keeps the old proof and object', async () => {
     const { fake, payments } = setup()
     await payments.submitProof(parent, 'b1', png())

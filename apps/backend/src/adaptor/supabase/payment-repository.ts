@@ -40,11 +40,15 @@ export function createSupabasePaymentRepository(clientFor: (actor: Actor) => Sup
     },
 
     async replaceProof(actor, proofId, path) {
-      const { error } = await clientFor(actor)
+      const { data, error } = await clientFor(actor)
         .from('payment_proofs')
         .update({ proof_path: path, submitted_at: new Date().toISOString() })
         .eq('id', proofId)
+        .select('id')
       if (error) throw failure('proof update', error)
+      // RLS matches only proofs of bookings that are still held: no row means the booking was
+      // confirmed, cancelled or expired after the ownership check.
+      if (!data || data.length === 0) throw new DomainError('booking_not_payable')
     },
 
     async confirmTransfer(actor, bookingId) {

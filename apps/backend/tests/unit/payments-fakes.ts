@@ -42,13 +42,15 @@ export const refund: RefundReport = {
 /**
  * In-memory payments backend: bookings owned by users, one proof row per booking, stored objects,
  * and payments. `failNextSave` makes the next proof write throw, as a DB failure would.
+ * `replaceFindsNoRow` makes `replaceProof` report that no row was updated (the booking stopped
+ * being held after the ownership check), as the real adaptor does.
  */
 export function fakePayments() {
   const bookings = new Map<string, { userId: string; status: BookingStatus }>()
   const proofs = new Map<string, { id: string; path: string }>()
   const objects = new Set<string>()
   const payments: { bookingId: string }[] = []
-  const state = { failNextSave: false, proofSeq: 0 }
+  const state = { failNextSave: false, replaceFindsNoRow: false, proofSeq: 0 }
 
   const own = (a: Actor, bookingId: string) => {
     const booking = bookings.get(bookingId)
@@ -75,6 +77,7 @@ export function fakePayments() {
     },
     async replaceProof(_a, proofId, path) {
       save()
+      if (state.replaceFindsNoRow) throw new DomainError('booking_not_payable')
       for (const [bookingId, proof] of proofs) if (proof.id === proofId) proofs.set(bookingId, { id: proofId, path })
     },
     async confirmTransfer(a, bookingId) {

@@ -33,6 +33,8 @@ const app = createApp({
   ...wirePayments(supabase),
 } as unknown as AppDeps)
 
+const ports = wirePayments(supabase)
+
 const users: TestUser[] = []
 async function newUser(role?: 'parent' | 'admin' | 'teacher') {
   const user = await createUser(role)
@@ -163,6 +165,23 @@ describe('PUT /bookings/:id/proof', () => {
     expect(res.status).toBe(400)
     expect(res.body.message).toBe('booking_not_payable')
     expect(await objectsOf(parent)).toHaveLength(1)
+  })
+})
+
+describe('Supabase payment repository', () => {
+  // The race "confirm wins between the ownership check and the replace" made deterministic: the
+  // booking is already paid when replaceProof runs. RLS lets the update match no row.
+  it('replaceProof on a booking that is no longer held rejects booking_not_payable and keeps the proof row', async () => {
+    const { parent, booking } = await setupBooking()
+    await uploadProof(parent, booking.id)
+    await confirm(parent, booking.id)
+    const [before] = await proofRow(booking.id)
+    const actor = { id: parent.id, role: 'parent' as const, email: '', token: await tokenOf(parent) }
+
+    const error = await ports.paymentRepository.replaceProof(actor, before!.id, `${parent.id}/${booking.id}-late.png`).catch((e: unknown) => e)
+
+    expect((error as { code?: string }).code).toBe('booking_not_payable')
+    expect(await proofRow(booking.id)).toEqual([before])
   })
 })
 

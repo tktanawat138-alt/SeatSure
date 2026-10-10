@@ -50,8 +50,9 @@ export default function MyBookingsPage() {
       toast.success('บันทึกหลักฐานแล้ว กรุณากดยืนยันการชำระเงิน')
       void load()
     } catch (cause) {
-      const message = cause instanceof DomainError
-        ? cause.code === 'proof_type_invalid' ? 'เลือกไฟล์ JPG, PNG หรือ WebP' : 'ไฟล์ต้องมีขนาดไม่เกิน 5 MB'
+      const code = cause instanceof DomainError ? cause.code : null
+      const message = code === 'proof_type_invalid' ? 'เลือกไฟล์ JPG, PNG หรือ WebP'
+        : code === 'proof_size_exceeded' ? 'ไฟล์ต้องมีขนาดไม่เกิน 5 MB'
         : errorText(cause instanceof Error ? cause : { message: 'payment_proof_upload_failed' })
       toast.error(message)
     } finally {

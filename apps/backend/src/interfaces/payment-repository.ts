@@ -10,7 +10,10 @@ export interface PaymentRepository {
   ownBooking(actor: Actor, bookingId: string): Promise<{ status: BookingStatus } | null>
   proofOf(actor: Actor, bookingId: string): Promise<StoredProof | null>
   insertProof(actor: Actor, bookingId: string, path: string): Promise<void>
-  /** Points an existing proof row at a new object and resets its submission time. */
+  /**
+   * Points an existing proof row at a new object and resets its submission time. Throws
+   * booking_not_payable when no row was updated because the booking is no longer held.
+   */
   replaceProof(actor: Actor, proofId: string, path: string): Promise<void>
   /**
    * Marks the booking paid and writes one payment with a receipt number. Succeeds without a
