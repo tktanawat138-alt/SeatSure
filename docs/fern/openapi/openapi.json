@@ -605,7 +605,7 @@
         ],
         "operationId": "reviewCourse",
         "summary": "Approve or reject a submitted course",
-        "description": "Only the school admin account (`admin01@seatsure.test`) may review; other admins get `admin01_required`, other roles `forbidden`.\n\n`approved=true` sets `approval_status=approved` and opens registration; `approved=false` sets `rejected` and keeps registration closed. Returns the updated course.\n\nRequires a bearer token with role: admin.\n\nErrors (the `message` of the failure envelope):\n\n- `400` `Validation failed`: The body or query does not match the schema; `errors` lists the fields.\n- `401` `not_authenticated`: Missing, invalid or expired access token.\n- `403` `forbidden`: The role may not do this.\n- `403` `admin01_required`: The caller is an admin but not the school admin account.\n- `404` `course_not_found`: No course has this id (a malformed id counts as unknown).",
+        "description": "Only the school admin account (`admin01@seatsure.test`) may review; other admins get `admin01_required`, other roles `forbidden`.\n\n`approved=true` sets `approval_status=approved` and opens registration; `approved=false` sets `rejected` and keeps registration closed. Returns the updated course.\n\nOnly a `pending` course can be reviewed. Reviewing an approved or rejected course again is `course_not_pending` (HTTP 409); to withdraw an approved course, cancel it so its bookings are refunded.\n\nRequires a bearer token with role: admin.\n\nErrors (the `message` of the failure envelope):\n\n- `400` `Validation failed`: The body or query does not match the schema; `errors` lists the fields.\n- `401` `not_authenticated`: Missing, invalid or expired access token.\n- `403` `forbidden`: The role may not do this.\n- `403` `admin01_required`: The caller is an admin but not the school admin account.\n- `404` `course_not_found`: No course has this id (a malformed id counts as unknown).\n- `409` `course_not_pending`: The course was already approved or rejected.",
         "parameters": [
           {
             "name": "id",
@@ -684,6 +684,16 @@
           },
           "404": {
             "description": "`course_not_found`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`course_not_pending`",
             "content": {
               "application/json": {
                 "schema": {

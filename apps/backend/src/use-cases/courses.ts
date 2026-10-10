@@ -61,7 +61,11 @@ export function createCourses(repo: CourseRepository) {
 
   async function reviewCourse(actor: Actor, id: string, approved: boolean): Promise<Course> {
     if (!isSchoolAdmin(actor)) throw new DomainError('admin01_required')
-    if (!(await repo.find(id))) throw new DomainError('course_not_found')
+    const course = await repo.find(id)
+    if (!course) throw new DomainError('course_not_found')
+    // Only the approval queue is reviewed. Withdrawing an approved course goes through cancelCourse,
+    // which cancels its bookings and reports the refunds.
+    if (course.approval_status !== 'pending') throw new DomainError('course_not_pending')
     return repo.update(actor, id, { approvalStatus: approved ? 'approved' : 'rejected', registrationOpen: approved })
   }
 

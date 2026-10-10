@@ -80,6 +80,8 @@ export const coursesEndpoints: Endpoint[] = [
       'Only the school admin account (`admin01@seatsure.test`) may review; other admins get `admin01_required`, other roles `forbidden`.',
       '',
       '`approved=true` sets `approval_status=approved` and opens registration; `approved=false` sets `rejected` and keeps registration closed. Returns the updated course.',
+      '',
+      'Only a `pending` course can be reviewed. Reviewing an approved or rejected course again is `course_not_pending` (HTTP 409); to withdraw an approved course, cancel it so its bookings are refunded.',
     ].join('\n'),
     tag: 'Courses',
     auth: ['admin'],
@@ -91,6 +93,7 @@ export const coursesEndpoints: Endpoint[] = [
       { status: 403, code: 'admin01_required', description: 'The caller is an admin but not the school admin account.' },
       invalid,
       notFound,
+      { status: 409, code: 'course_not_pending', description: 'The course was already approved or rejected.' },
     ],
   },
   {

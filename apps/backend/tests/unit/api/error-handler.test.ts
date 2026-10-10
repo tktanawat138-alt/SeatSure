@@ -23,6 +23,8 @@ describe('errorHandler', () => {
     ['course_not_found', 404],
     ['booking_not_found', 404],
     ['course_full', 400],
+    ['course_not_pending', 409],
+    ['course_cancelled', 400],
   ])('DomainError %s maps to %i with the code as message', async (code, status) => {
     const res = await request(throwing(new DomainError(code))).get('/boom')
     expect(res.status).toBe(status)

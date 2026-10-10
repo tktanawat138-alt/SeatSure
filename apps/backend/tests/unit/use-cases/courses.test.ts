@@ -191,6 +191,18 @@ describe('reviewCourse', () => {
     const { reviewCourse } = setup()
     expect(await codeOf(reviewCourse(actors.admin01, 'nope', true))).toBe('course_not_found')
   })
+
+  it.each([
+    ['approve an approved', 'a', true],
+    ['reject an approved', 'a', false],
+    ['approve a rejected', 'r', true],
+    ['reject a rejected', 'r', false],
+    ['reject a cancelled', 'cancelled', false],
+  ] as const)('reviewCourse %s course is course_not_pending and writes nothing', async (_n, id, decision) => {
+    const { reviewCourse, repo } = setup()
+    expect(await codeOf(reviewCourse(actors.admin01, id, decision))).toBe('course_not_pending')
+    expect(repo.calls).toEqual([])
+  })
 })
 
 describe('cancelCourse', () => {

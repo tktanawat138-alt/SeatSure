@@ -138,6 +138,12 @@ describe('POST /courses/:id/approval', () => {
     expect(res.status).toBe(403)
   })
 
+  it('reviewing a course that is no longer pending is 409 course_not_pending', async () => {
+    const res = await request(setup().app).post(`/courses/${ID}/approval`).set(as('u-admin01')).send({ approved: false })
+    expect(res.status).toBe(409)
+    expect(res.body).toEqual({ success: false, message: 'course_not_pending' })
+  })
+
   it('a body without approved is 400', async () => {
     const res = await request(setup().app).post(`/courses/${pending.id}/approval`).set(as('u-admin01')).send({})
     expect(res.status).toBe(400)

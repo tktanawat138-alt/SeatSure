@@ -41,6 +41,7 @@ const errorMessages: Record<string, string> = {
   proof_size_exceeded: 'ไฟล์ต้องมีขนาดไม่เกิน 5 MB',
   course_cancelled: 'คอร์สนี้ถูกยกเลิกแล้ว',
   course_already_cancelled: 'คอร์สนี้ถูกยกเลิกไปแล้ว',
+  course_not_pending: 'คอร์สนี้ผ่านการพิจารณาแล้ว',
   cancellation_reason_required: 'กรุณาระบุเหตุผลที่ยกเลิกคอร์ส',
   admin_required: 'เฉพาะผู้ดูแลระบบเท่านั้นที่ทำรายการนี้ได้',
   registration_closed: 'คอร์สนี้ปิดรับสมัครแล้ว',

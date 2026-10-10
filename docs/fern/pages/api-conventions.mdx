@@ -44,6 +44,7 @@ and the `errors` list. Malformed JSON is `400 Invalid JSON body`. Unknown routes
 | 401 | `not_authenticated`, `Invalid login credentials` |
 | 403 | `forbidden`, `admin01_required` |
 | 404 | any code ending in `_not_found` (`course_not_found`, `booking_not_found`) |
+| 409 | `course_not_pending`: the course was already approved or rejected |
 | 429 | `rate_limited` |
 | 400 | every other domain code, validation failures, invalid JSON |
 | 413 | `proof_size_exceeded`: the proof upload route answers it itself (`payments.routes.ts`) when the body is over 5 MiB |
@@ -66,6 +67,7 @@ codes it can return in the [API reference](/api-reference).
 | `course_full` | no seat left (R1) |
 | `registration_closed` | the course is closed for registration |
 | `course_not_approved` | the course has not been approved |
+| `course_not_pending` | only a `pending` course can be approved or rejected (409); withdraw an approved course by cancelling it |
 | `course_cancelled`, `course_already_cancelled` | the course is cancelled |
 | `already_booked` | this account already holds or has paid a seat in the course |
 | `student_name_required` | empty student name |

@@ -11,6 +11,7 @@ describe('errorText', () => {
     ['course_not_found', 'ไม่พบคอร์สนี้'],
     ['proof_type_invalid', 'เลือกไฟล์ JPG, PNG หรือ WebP'],
     ['proof_size_exceeded', 'ไฟล์ต้องมีขนาดไม่เกิน 5 MB'],
+    ['course_not_pending', 'คอร์สนี้ผ่านการพิจารณาแล้ว'],
   ])('maps %s to its Thai text', (code, text) => {
     expect(errorText({ message: code })).toBe(text)
   })

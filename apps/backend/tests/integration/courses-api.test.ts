@@ -113,6 +113,36 @@ describe('course lifecycle', () => {
     expect(res.body).toEqual({ success: false, message: 'admin01_required' })
   })
 
+  it('approving twice: the second review is 409 course_not_pending', async () => {
+    const teacher = await createUser('teacher')
+    const created = await send('post', teacher, '/courses', { ...newCourse, title: `${newCourse.title} twice` })
+    const id = created.body.data.id as string
+    createdViaApi.push(id)
+    const admin01 = await loginAsAdmin01()
+
+    expect((await send('post', admin01, `/courses/${id}/approval`, { approved: true })).status).toBe(200)
+    const again = await send('post', admin01, `/courses/${id}/approval`, { approved: true })
+    expect(again.status).toBe(409)
+    expect(again.body).toEqual({ success: false, message: 'course_not_pending' })
+  })
+
+  it('rejecting an approved course with a paid booking is refused and the booking stays paid', async () => {
+    const course = await createCourse({ capacity: 3 })
+    const parent = await createUser()
+    const booking = await mustBook(parent, course.id)
+    await attachProof(parent, booking.id)
+    expect((await confirmPayment(parent, booking.id)).error).toBeNull()
+
+    const res = await send('post', await loginAsAdmin01(), `/courses/${course.id}/approval`, { approved: false })
+    expect(res.status).toBe(409)
+    expect(res.body.message).toBe('course_not_pending')
+
+    const { data: row } = await admin.from('courses').select('approval_status, registration_open').eq('id', course.id).single()
+    expect(row).toEqual({ approval_status: 'approved', registration_open: true })
+    const { data: stored } = await admin.from('bookings').select('status').eq('id', booking.id).single()
+    expect(stored?.status).toBe('paid')
+  })
+
   it('a parent cannot create a course', async () => {
     const res = await send('post', await createUser(), '/courses', newCourse)
     expect(res.status).toBe(403)
