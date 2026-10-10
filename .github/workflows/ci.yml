@@ -33,7 +33,12 @@ jobs:
           cache-dependency-path: apps/frontend/package-lock.json
       - run: npm ci
       - run: npm run test:unit
+      # Placeholder Supabase settings: without them the bundler drops the whole app behind
+      # the "missing settings" guard in src/lib/supabase.ts and the build checks almost nothing.
       - run: npm run build
+        env:
+          VITE_SUPABASE_URL: http://127.0.0.1:54321
+          VITE_SUPABASE_ANON_KEY: ci-build-placeholder
 
   integration-e2e:
     name: Integration and E2E tests
