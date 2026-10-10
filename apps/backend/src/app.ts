@@ -6,6 +6,7 @@ import { coursesRoutes, type CoursesDeps } from './adaptor/http/courses.routes'
 import { paymentsRoutes, type PaymentsDeps } from './adaptor/http/payments.routes'
 import { errorHandler } from './adaptor/http/error-handler'
 import { createRequireAuth } from './adaptor/http/guard'
+import { accessLog } from './adaptor/http/security-log'
 import type { AuthProvider } from './interfaces/auth-provider'
 import { createAuth } from './use-cases/auth'
 
@@ -19,6 +20,7 @@ export function createApp(deps: AppDeps): express.Express {
   const requireAuth = createRequireAuth(auth.authenticate)
 
   const app = express()
+  app.use(accessLog)
   app.use(
     cors({
       origin: (origin, done) => done(null, origin === deps.frontendOrigin ? origin : false),

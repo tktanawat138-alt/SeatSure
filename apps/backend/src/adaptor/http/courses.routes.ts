@@ -5,6 +5,7 @@ import type { CourseRepository } from '../../interfaces/course-repository'
 import { createCourses } from '../../use-cases/courses'
 import { ApprovalBody, CancelCourseBody, CreateCourseBody, UpdateCourseBody, type CourseDto, type Envelope } from './contract'
 import { actorOf, type RequireAuth } from './guard'
+import { auditCourseAction } from './security-log'
 
 /** Ports the courses use cases need. */
 export interface CoursesDeps {
@@ -44,7 +45,7 @@ export function coursesRoutes(deps: CoursesDeps, requireAuth: RequireAuth): Rout
     res.json(body)
   })
 
-  router.patch('/courses/:id', requireAuth(['teacher', 'admin']), async (req, res) => {
+  router.patch('/courses/:id', requireAuth(['teacher', 'admin']), auditCourseAction('course_update'), async (req, res) => {
     const id = courseId(req.params.id)
     const body: Envelope<CourseDto> = {
       success: true,
@@ -53,14 +54,16 @@ export function coursesRoutes(deps: CoursesDeps, requireAuth: RequireAuth): Rout
     res.json(body)
   })
 
-  router.post('/courses/:id/approval', requireAuth(['admin']), async (req, res) => {
+  const decision = (req: { body?: { approved?: unknown } }) =>
+    typeof req.body?.approved === 'boolean' ? { decision: req.body.approved ? 'approve' : 'reject' } : {}
+  router.post('/courses/:id/approval', requireAuth(['admin']), auditCourseAction('course_review', decision), async (req, res) => {
     const id = courseId(req.params.id)
     const { approved } = ApprovalBody.parse(req.body)
     const body: Envelope<CourseDto> = { success: true, data: await courses.reviewCourse(actorOf(req), id, approved) }
     res.json(body)
   })
 
-  router.post('/courses/:id/cancel', requireAuth(['admin']), async (req, res) => {
+  router.post('/courses/:id/cancel', requireAuth(['admin']), auditCourseAction('course_cancel'), async (req, res) => {
     const id = courseId(req.params.id)
     const { reason } = CancelCourseBody.parse(req.body)
     const body: Envelope<number> = { success: true, data: await courses.cancelCourse(actorOf(req), id, reason) }

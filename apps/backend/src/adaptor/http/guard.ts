@@ -20,8 +20,9 @@ export function createRequireAuth(authenticate: (token: string) => Promise<Actor
       const token = BEARER.exec(req.get('authorization') ?? '')?.[1]
       if (!token) throw new DomainError('not_authenticated')
       const actor = await authenticate(token)
-      if (roles && !roles.includes(actor.role)) throw new DomainError('forbidden')
+      // Set before the role check so a refused request is still logged with who made it.
       req.actor = actor
+      if (roles && !roles.includes(actor.role)) throw new DomainError('forbidden')
       next()
     }
 }

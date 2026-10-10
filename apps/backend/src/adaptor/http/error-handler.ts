@@ -1,6 +1,7 @@
 import type { ErrorRequestHandler } from 'express'
 import { ZodError } from 'zod'
 import { DomainError } from '../../entities/domain-error'
+import { rememberErrorCode } from './security-log'
 
 type Failure = { success: false; message: string; errors?: { field: string; message: string }[] }
 
@@ -17,12 +18,14 @@ function statusOf(code: string): number {
 // message; anything unexpected is a 500 whose detail is logged, never sent.
 export const errorHandler: ErrorRequestHandler = (err, _req, res, _next) => {
   if (err instanceof DomainError) {
+    rememberErrorCode(res, err.code)
     const body: Failure = { success: false, message: err.code }
     res.status(statusOf(err.code)).json(body)
     return
   }
   if (err instanceof ZodError) {
     const errors = err.issues.map((issue) => ({ field: issue.path.join('.'), message: issue.message }))
+    rememberErrorCode(res, 'Validation failed')
     const body: Failure = { success: false, message: 'Validation failed', errors }
     res.status(400).json(body)
     return

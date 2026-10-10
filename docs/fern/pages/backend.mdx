@@ -32,6 +32,23 @@ apps/backend/
   `403 forbidden` for other roles. Inside the handler, `actorOf(req)` returns the actor.
 - Express errors flow to `errorHandler`, which maps `DomainError` codes and zod errors to the envelope. See [API conventions](/api-conventions).
 
+## Security logging
+
+`adaptor/http/security-log.ts` writes one JSON line per security event to stdout (`console.info`), for a log collector to
+pick up. It lives in the HTTP layer only; use cases do not log.
+
+| `event` | When | Fields |
+|---|---|---|
+| `login_failed` | `POST /auth/login` answers 401 | `email_hash` (first 12 hex chars of SHA-256 of the trimmed, lowercased email), `ip` |
+| `unauthorized` | any other 401 | `method`, `path` (route pattern such as `/courses/:id`, no query string), `status` |
+| `forbidden` | any 403 | same as above plus `actor` (user id) when the token was valid |
+| `admin_action` | an admin reviews (`course_review`, with `decision`), updates (`course_update`) or cancels (`course_cancel`) a course | `action`, `actor`, `course`, `outcome` (`ok` or the error code), `status` |
+
+Every line has `ts` (ISO time). A refused admin action is logged once, as `admin_action` with its 4xx status. Tokens,
+passwords, request bodies (including the cancellation reason), the `Authorization` header and emails in clear are never
+written. `accessLog` is mounted first in `createApp`; `auditCourseAction(action)` sits after `requireAuth` on the admin course
+routes; the error handler records the failure code in `res.locals.errorCode` for the outcome.
+
 ## Environment
 
 `task up` writes `apps/backend/.env.local`: `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` (server only, never
