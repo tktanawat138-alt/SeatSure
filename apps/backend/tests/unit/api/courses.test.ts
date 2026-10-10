@@ -2,6 +2,7 @@ import request from 'supertest'
 import { describe, expect, it } from 'vitest'
 import { createApp } from '../../../src/app'
 import { accounts, fakeAuthProvider, tokenFor } from './fake-auth-provider'
+import { fakeAppDeps } from './fake-deps'
 import { course, fakeCourseRepository } from '../courses-fake-repository'
 
 // The fake auth accounts own ids u-teacher / u-parent / u-admin; admin01 is added for approval tests.
@@ -14,7 +15,7 @@ const pending = course({ id: '22222222-2222-4222-8222-222222222222', teacher_id:
 
 function setup() {
   const courseRepository = fakeCourseRepository([base, pending])
-  const app = createApp({ frontendOrigin: 'http://localhost:5173', authProvider: fakeAuthProvider(), courseRepository })
+  const app = createApp(fakeAppDeps({ courseRepository }))
   return { app, courseRepository }
 }
 const as = (id: string) => ({ Authorization: `Bearer ${tokenFor(id)}` })

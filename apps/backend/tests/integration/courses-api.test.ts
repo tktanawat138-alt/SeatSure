@@ -1,5 +1,6 @@
 import request from 'supertest'
 import { afterAll, describe, expect, it } from 'vitest'
+import { fakeAppDeps } from '../unit/api/fake-deps'
 import { createApp } from '../../src/app'
 import { createSupabaseAuthProvider } from '../../src/adaptor/supabase/auth-provider'
 import { wireCourses } from '../../src/adaptor/supabase/courses-wiring'
@@ -11,11 +12,10 @@ const config = {
   anonKey: process.env.VITE_SUPABASE_ANON_KEY!,
   serviceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY!,
 }
-const app = createApp({
-  frontendOrigin: 'http://localhost:5173',
+const app = createApp(fakeAppDeps({
   authProvider: createSupabaseAuthProvider(config),
   ...wireCourses(config),
-})
+}))
 
 const createdViaApi: string[] = []
 afterAll(async () => {

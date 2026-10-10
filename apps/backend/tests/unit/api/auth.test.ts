@@ -2,10 +2,11 @@ import request from 'supertest'
 import { describe, expect, it } from 'vitest'
 import { createApp } from '../../../src/app'
 import { fakeAuthProvider, tokenFor } from './fake-auth-provider'
+import { fakeAppDeps } from './fake-deps'
 
 function setup() {
   const authProvider = fakeAuthProvider()
-  const app = createApp({ frontendOrigin: 'http://localhost:5173', authProvider })
+  const app = createApp(fakeAppDeps({ authProvider }))
   return { app, authProvider }
 }
 

@@ -2,16 +2,16 @@ import request from 'supertest'
 import { describe, expect, it } from 'vitest'
 import { createApp } from '../../src/app'
 import { createSupabaseAuthProvider } from '../../src/adaptor/supabase/auth-provider'
+import { fakeAppDeps } from '../unit/api/fake-deps'
 
 // The API over HTTP (supertest, no listening process) with the real Supabase auth adaptor.
-const app = createApp({
-  frontendOrigin: 'http://localhost:5173',
+const app = createApp(fakeAppDeps({
   authProvider: createSupabaseAuthProvider({
     url: process.env.VITE_SUPABASE_URL!,
     anonKey: process.env.VITE_SUPABASE_ANON_KEY!,
     serviceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY!,
   }),
-})
+}))
 
 const PASSWORD = 'seatsure123'
 

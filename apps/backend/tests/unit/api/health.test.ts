@@ -1,9 +1,9 @@
 import request from 'supertest'
 import { describe, expect, it } from 'vitest'
 import { createApp } from '../../../src/app'
-import { fakeAuthProvider } from './fake-auth-provider'
+import { fakeAppDeps } from './fake-deps'
 
-const deps = () => ({ frontendOrigin: 'http://localhost:5173', authProvider: fakeAuthProvider() })
+const deps = () => fakeAppDeps()
 
 describe('GET /health', () => {
   it('returns 200 with the success envelope', async () => {
