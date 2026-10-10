@@ -1,0 +1,389 @@
+---
+title: Frontend test catalog
+description: Every test in apps/frontend/tests, file by file, with what is fed in, what is checked and the layer it protects.
+---
+
+Everything under `apps/frontend/tests/` runs with Vitest in a `node` environment: no browser, no React renderer, no real
+network, no `.env.local`. [Testing](/testing) explains the levels and the rules; this page lists the tests themselves.
+The project-level suites (cross-app integration, Playwright, k6) are in [Project test catalog](/test-catalog-project).
+
+## Summary
+
+Counts come from `npx vitest run --reporter=json` (Vitest 5, 16 files, 186 tests, all passing, about 0.3 s of test time).
+Parameterised cases (`it.each`) count once per row, as Vitest reports them.
+
+| Suite | Folder | Files | Tests | Command |
+|---|---|---|---|---|
+| Unit | `tests/unit/` | 12 | 120 | `npm run test:unit` (from `apps/frontend`) or `task test:unit` |
+| Integration (stubbed network) | `tests/integration/` | 4 (+ the `stub-network.ts` helper) | 66 | `npm run test:integration` or `task test:integration:frontend` |
+| Total | | 16 | 186 | `npm test` |
+
+Per file:
+
+| File | Tests | Area |
+|---|---|---|
+| `unit/layering.test.ts` | 5 | import boundaries, no Supabase client |
+| `unit/styles.test.ts` | 1 | no inline classes in TSX |
+| `unit/dark-variants.test.ts` | 3 | raw palette colours have a `dark:` sibling |
+| `unit/contrast.test.ts` | 43 | WCAG contrast of the tokens and status colours |
+| `unit/theme.test.ts` | 30 | `resolveTheme`, theme storage, the inline script in `index.html` |
+| `unit/format.test.ts` | 10 | `errorText` Thai messages |
+| `unit/api-base.test.ts` | 3 | `resolveApiBase` |
+| `unit/contract-alias.test.ts` | 2 | the `@contract` alias and DTO-to-entity type equality |
+| `unit/use-auto-refresh.test.ts` | 5 | 15 s polling and visibility refresh |
+| `unit/use-cases/auth.test.ts` | 3 | sign in, sign out, load me |
+| `unit/use-cases/courses.test.ts` | 10 | course use cases |
+| `unit/use-cases/payments.test.ts` | 5 | payment proof use cases |
+| `integration/http-client.test.ts` | 33 | client middleware (19), session store (8), auth gateway (6) |
+| `integration/courses-gateway.test.ts` | 13 | courses gateway |
+| `integration/bookings-gateway.test.ts` | 11 | bookings gateway and its use cases |
+| `integration/payments-gateway.test.ts` | 9 | raw Blob bodies and the payments gateway |
+
+The **Layer** column in the tables below names the layer or module the test protects (see [Frontend](/frontend) and
+[Architecture](/architecture) for the layer table): `entities`, `use-cases`, `adaptor`, `lib`, `config`, or `source tree`
+for the rules that scan files.
+
+## Unit tests
+
+### `unit/layering.test.ts` (5 tests)
+
+How it scans: it walks `apps/frontend/src/<layer>/` recursively, reads every `.ts` and `.tsx` file as text, extracts every
+`from '...'` import with a regex and fails when an import equals, or starts with, a forbidden prefix. The failure message
+names the file and the boundary. A layer folder that does not exist is skipped (an empty list), so adding a layer later
+does not break the test.
+
+| Test name | Input / setup | What is validated / expected | Layer |
+|---|---|---|---|
+| entities imports nothing from an outer layer | all files under `src/entities/`; banned: `react`, `@supabase`, `@/interfaces`, `@/use-cases`, `@/adaptor`, `@/ui` | no file imports any banned prefix | entities |
+| interfaces imports nothing from an outer layer | all files under `src/interfaces/`; banned: `react`, `@supabase`, `@/use-cases`, `@/adaptor`, `@/ui` | no banned import | interfaces |
+| use-cases imports nothing from an outer layer | all files under `src/use-cases/`; banned: `react`, `@supabase`, `@/adaptor`, `@/ui` | no banned import | use-cases |
+| adaptor imports nothing from an outer layer | all files under `src/adaptor/`; banned: `react`, `@/use-cases`, `@/ui` | no banned import | adaptor |
+| nothing under src imports @supabase or @/lib/supabase | every `.ts` and `.tsx` file under `src/` | no import starting with `@supabase` and no import of `@/lib/supabase`: the browser talks only to the API | source tree |
+
+### `unit/styles.test.ts` (1 test)
+
+How it scans: it walks all of `src/` for `.tsx` files, skips `src/components/ui/` (shadcn owns its inline `cva`), and
+tests each remaining file's source with three regexes. The first offending file fails the assertion and is named in the
+message. `.styles.ts` files are not scanned here (see the next file).
+
+| Test name | Input / setup | What is validated / expected | Layer |
+|---|---|---|---|
+| has no literal className strings, cn() or style props outside components/ui | every `.tsx` under `src/` except `src/components/ui/` | no match for `className="..."`, `className='...'`, `className={"..."}` (a quote or backtick right after the brace), no `cn(` call, no `style={{`. Passing `className={card({ tone })}` is allowed | source tree |
+
+### `unit/dark-variants.test.ts` (3 tests)
+
+How it scans: it collects every `*.styles.ts` file plus every `.tsx` under `src/components/ui/`, extracts every quoted
+string (single, double or backtick without interpolation), splits it on whitespace and checks the Tailwind tokens.
+
+| Test name | Input / setup | What is validated / expected | Layer |
+|---|---|---|---|
+| finds the style files to scan | the file list above | more than 10 files found, so the other tests cannot pass on an empty scan | source tree |
+| has a dark: sibling for every raw palette colour utility in the same string | each string with a raw palette utility (`bg`, `text`, `border`, `ring`, `fill`, `stroke` on `emerald`, `amber`, `red`, `green`, `yellow`, `orange`, `blue`, `sky`, `slate`, `gray`, `zinc`, `neutral`, `stone`, shade 2 or 3 digits) | the same string has a `dark:` utility for the same property. Failure lists `file: "token" has no dark:<property>-* sibling in "<string>"` | source tree |
+| does not hard-code white or black text and background outside overlays | the same strings | no `bg-`, `text-` or `border-` `white` or `black` (with optional opacity), except `bg-black/NN` scrims, which are the same dim layer in both themes | source tree |
+
+### `unit/contrast.test.ts` (43 tests)
+
+Setup: parses `src/index.css` (the `:root` and `.dark` token blocks), converts the `oklch()` tokens to sRGB, composites
+alpha tokens over the backdrop and computes the WCAG 2.x contrast ratio. The dark theme is the light tokens overridden by
+`.dark`. Status colours are read from `node_modules/tailwindcss/theme.css`.
+
+| Test name | Input / setup | What is validated / expected | Layer |
+|---|---|---|---|
+| dark theme contrast and light theme contrast, 17 pairs each (34 tests) | foreground on background token pairs: `foreground`/`background`, `card-foreground`/`card`, `popover-foreground`/`popover`, `primary-foreground`/`primary` (plus alpha 0.7 and 0.8 variants), `secondary-foreground`/`secondary`, `accent-foreground`/`accent`, `muted-foreground` on `background`, `card` and `muted`, `destructive` on `background` and `card`, `primary` on `background` and `card`, `ring` on `background` and `card` | ratio at least 4.5:1 for text, 3:1 for the alpha 0.7 brand headline (large text) and for `ring` (focus indicator) | config (`index.css`) |
+| dark theme defines every token the light theme defines | keys of `:root` versus keys of `.dark` | no token missing from `.dark`, except `radius` | config |
+| dark theme keeps form control borders at 3:1 against the page and cards | `input` on `background` and on `card`, dark tokens | ratio at least 3:1 (2 assertions in 1 test) | config |
+| status colours, light ok, warn, bad and dark ok, warn, bad (6 tests) | Tailwind palette pairs: `emerald-700` on `emerald-50`, `amber-800` on `amber-50`, `red-700` on `red-50`; `emerald-300` on `emerald-950`, `amber-300` on `amber-950`, `red-300` on `red-950` | text ratio at least 4.5:1 (the pairs used by `status-badge.styles.ts`) | config |
+| status colours keeps the roster warning text readable on the dark card | `amber-300` over the dark `card` token | ratio at least 4.5:1 | config |
+
+### `unit/theme.test.ts` (30 tests)
+
+Setup: an in-memory `ThemeStorage` (`memory()`), a `throwing` storage whose `getItem` and `setItem` throw a
+`SecurityError`, and `index.html`, whose inline `<script>` is executed with `new Function` against a fake
+`localStorage`, `matchMedia` and `document`.
+
+| Test name | Input / setup | What is validated / expected | Layer |
+|---|---|---|---|
+| resolveTheme (6 tests) | choice `light`, `dark`, `system` crossed with `prefersDark` false and true | `light` and `dark` ignore the OS; `system` gives `dark` only when the OS prefers dark | lib |
+| readStoredTheme uses the key seatsure-theme | `THEME_KEY` | equals `seatsure-theme` | lib |
+| readStoredTheme returns a stored light, dark, system (3 tests) | memory storage holding the value | the stored choice is returned | lib |
+| readStoredTheme defaults to system when nothing is stored | empty storage | `system` | lib |
+| readStoredTheme ignores garbage (5 tests) | stored values `""`, `Dark`, `blue`, `{"theme":"dark"}`, `undefined` | `system` (anything not exactly `light`, `dark` or `system`) | lib |
+| readStoredTheme survives a storage that throws | the throwing storage | returns `system`, no exception | lib |
+| storeTheme writes the choice under seatsure-theme | memory storage, `dark` | `data['seatsure-theme']` is `dark` | lib |
+| storeTheme survives a storage that throws | the throwing storage | does not throw | lib |
+| createThemeStorage uses the real storage when it works | factory returning a working storage | write lands in the real storage and reads back | lib |
+| createThemeStorage keeps the choice in memory when reading the storage object itself throws | factory that throws (blocked site data) | reads `system`, then a stored `dark` is read back from memory | lib |
+| createThemeStorage keeps the choice in memory when writes throw | factory returning the throwing storage | a stored `light` is read back from memory | lib |
+| the inline script in index.html exists | regex over `index.html` | a non-empty `<script>` is found | config |
+| the inline script in index.html stored=... prefersDark=... gives dark=... (7 tests) | stored `light` with dark OS, `dark` with light OS, nothing stored with either OS, `garbage` with dark OS, storage that throws with either OS | the script adds the `dark` class exactly when expected, and `resolveTheme` (with garbage and throw mapped to `system`) gives the same answer: the pre-React script and the app never disagree, so there is no flash | config |
+
+### `unit/format.test.ts` (10 tests)
+
+Input is `errorText({ message: <code> })`. Codes reach it as `DomainError.code` from the client middleware or a use case.
+
+| Test name | Input / setup | What is validated / expected | Layer |
+|---|---|---|---|
+| errorText maps `<code>` to its Thai text (9 tests) | `course_full`, `already_booked`, `booking_not_found`, `forbidden`, `invalid_course_schedule`, `course_not_found`, `proof_type_invalid`, `proof_size_exceeded`, `course_not_pending` | the exact Thai string (table in the Validation matrix) | lib |
+| errorText falls back to the raw code for an unknown error | `something_new` | `ทำรายการไม่สำเร็จ (something_new)` | lib |
+
+### `unit/api-base.test.ts` (3 tests)
+
+| Test name | Input / setup | What is validated / expected | Layer |
+|---|---|---|---|
+| resolveApiBase with VITE_API_URL returns it, in production and development | `{ PROD: true, VITE_API_URL: 'https://api.example.com' }` and `{ DEV: true, VITE_API_URL: 'http://127.0.0.1:4000' }` | the configured URL is returned unchanged | adaptor |
+| resolveApiBase in development without VITE_API_URL falls back to the local API | `{ DEV: true }` and `{ DEV: true, VITE_API_URL: '' }` | `http://localhost:3001` | adaptor |
+| resolveApiBase in a production build without VITE_API_URL throws a clear error | `{ PROD: true }` and `{ PROD: true, VITE_API_URL: '' }` | throws an error that mentions `VITE_API_URL`: a production bundle never falls back to the visitor's own localhost | adaptor |
+
+### `unit/contract-alias.test.ts` (2 tests)
+
+| Test name | Input / setup | What is validated / expected | Layer |
+|---|---|---|---|
+| resolves and parses a valid LoginBody | `LoginBody.parse({ email, password })` imported through `@contract` | the alias resolves to the backend `contract.ts` and the parse returns the input | contract |
+| DTO types equal the frontend entity types | `expectTypeOf` on `CourseDto`/`Course`, `BookingDto`/`MyBooking`, `RosterRowDto`/`CourseRosterRow`, `RefundReportDto`/`RefundReport`, `Me`/`CurrentUser` | each pair is type-identical; a contract change that the entities do not follow fails type checking | contract |
+
+### `unit/use-auto-refresh.test.ts` (5 tests)
+
+Setup: fake timers (`vi.useFakeTimers`) and a fake document (`isVisible`, `onVisibilityChange`, `setVisible`,
+`listenerCount`) that fires the listener like `visibilitychange`. The tests cover `createAutoRefresh`, the plain function
+behind the `useAutoRefresh` hook.
+
+| Test name | Input / setup | What is validated / expected | Layer |
+|---|---|---|---|
+| refreshes every 15 seconds | `AUTO_REFRESH_INTERVAL_MS`, timers advanced 14 999 ms, 1 ms, then 30 000 ms | the constant is `15_000`; no call before 15 s; one call at 15 s; three calls after 45 s | lib |
+| refreshes when the document becomes visible, not when it turns hidden | `setVisible(false)` then `setVisible(true)` | no call on hidden; one call on visible | lib |
+| does not stack a call while the previous refresh is still pending | a refresh that returns a never-settled promise; two ticks, then hidden and visible | one call only; after the promise settles the next tick calls again (2 calls) | lib |
+| stops ticking and listening after dispose | `dispose()`, then 60 s and visibility changes | no listener left, no call | lib |
+| keeps ticking after a refresh that throws or rejects, with no unhandled rejection | a refresh that throws once, rejects once, then succeeds; a `process.on('unhandledRejection')` spy | three calls over three ticks and no unhandled rejection | lib |
+
+### `unit/use-cases/auth.test.ts` (3 tests)
+
+Setup: a fake `AuthGateway` that logs its calls.
+
+| Test name | Input / setup | What is validated / expected | Layer |
+|---|---|---|---|
+| signIn passes the credentials to the gateway | `a@b.c`, `pw` | gateway log is `signIn a@b.c pw` | use-cases |
+| signOut asks the gateway to end the session | no input | log is `signOut` | use-cases |
+| loadMe returns the current user | fake `me()` | returns the `CurrentUser` unchanged | use-cases |
+
+### `unit/use-cases/courses.test.ts` (10 tests)
+
+Setup: a fake `CoursesGateway` that records `[method, ...args]` in a log.
+
+| Test name | Input / setup | What is validated / expected | Layer |
+|---|---|---|---|
+| listCourses passes the filter to the gateway and returns the courses | `{ mine: true }` | gateway got the filter and the result is returned | use-cases |
+| createCourse trims text, converts numbers and dates, then creates | draft with padded strings, `'20'`, `'900'`, local `datetime-local` strings | gateway receives trimmed title and description, numeric `capacity` and `price`, `startsAt` and `endsAt` as ISO strings | use-cases |
+| createCourse a schedule that ends before it starts is rejected without a request | `endsAt` equal to `startsAt` | `DomainError` `invalid_course_schedule`, gateway log empty | use-cases |
+| createCourse a date that cannot be read is an invalid schedule | `startsAt: ''` | `invalid_course_schedule` | use-cases |
+| updateCourse sends the changes | `capacity: 5, registrationOpen: false` | passed through as is | use-cases |
+| updateCourseSchedule rejects an end before the start | end one hour before start | `invalid_course_schedule`, no request | use-cases |
+| updateCourseSchedule sends the schedule through the courses gateway | valid start and end | `update` called with `startsAt` and `endsAt` as ISO strings | use-cases |
+| reviewCourse sends the decision | `('c1', false)` | `review c1 false` | use-cases |
+| cancelCourse trims the reason and returns the refund count | `' ฝนตก '`, fake `cancel` returns 4 | reason sent trimmed, 4 returned | use-cases |
+| cancelCourse a blank reason is rejected without a request | `'  '` | `cancellation_reason_required`, no request | use-cases |
+
+### `unit/use-cases/payments.test.ts` (5 tests)
+
+Setup: a fake `PaymentsGateway` and `File` objects built with a type and a size.
+
+| Test name | Input / setup | What is validated / expected | Layer |
+|---|---|---|---|
+| submitPaymentProof valid image hands the booking and file to the gateway | 4-byte `image/png` file | gateway got `submit b1 image/png 4` | use-cases |
+| submitPaymentProof wrong type rejects proof_type_invalid without a request | `application/pdf` | `proof_type_invalid`, no gateway call | use-cases |
+| submitPaymentProof over 5 MiB rejects proof_size_exceeded without a request | `image/jpeg` of 5 MiB + 1 byte | `proof_size_exceeded`, no gateway call | use-cases |
+| confirmPaymentProof asks the gateway to confirm the booking | `'b1'` | `confirm b1` | use-cases |
+| loadPaymentSystem returns the overview | fake `overview()` | `{ courses: [], refunds: [] }` | use-cases |
+
+## Integration tests (stubbed network)
+
+All four files use the real HTTP adaptors (`client.ts`, `session-store.ts`, the gateways) and the real use cases. Only
+`fetch` is replaced.
+
+### The stub: `integration/stub-network.ts`
+
+Not a test file; it is the fake network.
+
+| Helper | Behaviour |
+|---|---|
+| `stubNetwork(...routes)` | replaces the global `fetch` with `vi.fn`; records every call as `{ url, init }` and returns that array; the first route that answers wins; an unmatched request throws `unexpected request: <path>`; every reply is a JSON `Response` with the given `status` (default 200) |
+| `api(method, path, reply)` | a route that matches `url.pathname` and the HTTP method (default `GET`); `reply` is `{ status, body }` or a function of the request init, so a test can answer by its `Authorization` header |
+| `authorization(init)` | the `Authorization` header a stubbed request carried, or `null` |
+
+Each file sets `VITE_API_URL=http://api.test` through `vite.config.ts`, builds its own `createApiClient({ baseUrl })` and an
+in-memory `Storage` for the session store, and calls `vi.unstubAllGlobals()` after each test. The shared envelope helpers are
+`ok(data)` for `{ success: true, data }` and `fail(status, message)` for `{ success: false, message }`.
+
+### `integration/http-client.test.ts`: apiClient (19 tests)
+
+Setup: `setup(initialSession, timeoutMs)` builds a memory-backed session store and a client. `coursesFor(n)` answers
+`GET /courses` with 200 only to `Bearer access-n` and with 401 `not_authenticated` otherwise. Sessions are
+`access-N` / `refresh-N` with `expiresAt` far in the future.
+
+| Test name | Input / setup | What is validated / expected | Layer |
+|---|---|---|---|
+| request when signed out sends no Authorization header | empty store, `GET /courses` | no `Authorization`; URL is `http://api.test/courses` | adaptor |
+| request when signed in sends the bearer token and unwraps the envelope data | session 1, route accepts `access-1` | resolves to the `data` array, not the envelope | adaptor |
+| request with a body sends JSON | `POST /bookings` with `{ courseId }` | `content-type: application/json` and a JSON-stringified body | adaptor |
+| 401 refreshes once and retries the original request with the new token | session 1, route accepts only `access-2`, `/auth/refresh` returns session 2 | call order `/courses`, `/auth/refresh`, `/courses`; refresh has no `Authorization` and body `{ refreshToken: 'refresh-1' }`; store holds session 2 | adaptor |
+| parallel 401s share a single refresh | three concurrent `GET /courses` with a stale token | all three resolve; exactly one `/auth/refresh` call (single flight) | adaptor |
+| refresh failure clears the store and rejects with not_authenticated | refresh answers 401 | `DomainError` code `not_authenticated`, store is `null`, calls are `/courses`, `/auth/refresh` (no retry) | adaptor |
+| a retry that is still 401 clears the store and does not loop | route accepts only `access-99`, refresh succeeds | `not_authenticated`, store cleared, exactly one refresh and one retry | adaptor |
+| a 400 and a 403 from refresh also clear the store and reject with not_authenticated (2 tests) | refresh answers `400` or `403` `invalid_grant` | `not_authenticated`, store `null` | adaptor |
+| a 500 and a 429 from refresh keep the session and reject with the server code (2 tests) | refresh answers `500 Internal server error` or `429 rate_limited` | rejects with that message as the code; the session is unchanged so the next attempt can succeed | adaptor |
+| a network failure during refresh keeps the session | `fetch` answers 401 for `/courses` and rejects for `/auth/refresh` | code `network_error`, session unchanged | adaptor |
+| after another tab rotated the token, a 401 retry uses the stored newer token without a refresh | two stores on one storage; during the first request "tab A" stores session 2 | the retry sends `access-2`, no `/auth/refresh` call | adaptor |
+| after another tab rotated the token, a refresh uses the newer refresh token | stored session 2 while the client started with 1 | first call carries `access-2`; refresh body carries `refresh-2`; the result (session 3) is visible in the other tab's store | adaptor |
+| a 401 without a session does not refresh and maps the message | signed out, `POST /auth/login` answers 401 `Invalid login credentials` | code `Invalid login credentials`; exactly one call | adaptor |
+| an envelope error maps to DomainError with the message as code | `POST /bookings` answers 400 `course_full` | `DomainError` with code `course_full`; the session is kept | adaptor |
+| a network failure rejects with network_error | `fetch` rejects with `TypeError` | code `network_error` | adaptor |
+| a non-JSON response rejects with network_error | 502 with an HTML body | code `network_error` | adaptor |
+| a request that outlives the timeout rejects with timeout | `fetch` that never settles, `timeoutMs: 20`, listens for the abort signal | code `timeout` (the default in production is 15 s) | adaptor |
+
+### `integration/http-client.test.ts`: sessionStore (8 tests)
+
+Setup: a memory `Storage` (`getItem`, `setItem`, `removeItem`), or storages that throw. The storage key is
+`seatsure.session`.
+
+| Test name | Input / setup | What is validated / expected | Layer |
+|---|---|---|---|
+| set persists to storage and a new store reads it back | one store sets, a second store on the same storage reads | the second store returns the session | adaptor |
+| clear removes the session and notifies subscribers until they unsubscribe | `subscribe`, `set(1)`, `clear()`, unsubscribe, `set(2)` | listener saw session 1 then `null`, not session 2; `get()` returns session 2 | adaptor |
+| survives localStorage throwing on every access, keeping the session in memory | `getItem`, `setItem`, `removeItem` all throw | `get()` is `null`; after `set` it returns the session; after `clear` it is `null` again | adaptor |
+| survives the localStorage getter itself throwing | the storage factory throws (blocked site data) | `set` then `get` returns the session from memory | adaptor |
+| two stores sharing storage: a rotation by one is read by the other | tab A and tab B on one storage | B sees A's `set(1)`, `set(2)` and `clear()` because `get()` reads storage each time | adaptor |
+| keeps the session in memory when storage reads work but writes throw | `setItem` throws `QuotaExceededError` | `get()` still returns the session | adaptor |
+| notifies subscribers when another tab changes the session key | a global `window` stub (`EventTarget`); `storage` events with key `seatsure.session`, key `unrelated`, and key `null` | subscriber saw session 2 then `null`; the unrelated key is ignored; `null` means another tab cleared all storage | adaptor |
+| ignores corrupt stored data | stored `{not json`, `{ "accessToken": 1 }`, and a session with `refreshToken: ''` | `get()` is `null` each time: the stored value must pass the contract `Session` zod schema | adaptor |
+
+### `integration/http-client.test.ts`: authGateway (6 tests)
+
+| Test name | Input / setup | What is validated / expected | Layer |
+|---|---|---|---|
+| signIn posts the credentials without Authorization and stores the session | `POST /auth/login` returns session 1 | no `Authorization`; body is `{ email, password }`; store holds session 1 | adaptor |
+| signIn with a wrong password rejects with Invalid login credentials and stores nothing | login answers 401 | code `Invalid login credentials`; store `null` | adaptor |
+| signOut posts logout with the token, then clears the store | `POST /auth/logout`, session 1 | `Authorization: Bearer access-1`; store `null` | adaptor |
+| signOut clears the store even when the API is unreachable | `fetch` rejects | no error; store `null` | adaptor |
+| signOut without a session makes no request | empty store | zero calls | adaptor |
+| me returns the current user | `GET /me` answers only for `Bearer access-1` | returns the user object | adaptor |
+
+### `integration/courses-gateway.test.ts` (13 tests)
+
+Setup: a gateway over a client with session 1 stored. Request bodies are parsed with the real contract schemas
+(`CreateCourseBody`, `UpdateCourseBody`, `ApprovalBody`, `CancelCourseBody`), so a gateway that drifts from the contract fails.
+
+| Test name | Input / setup | What is validated / expected | Layer |
+|---|---|---|---|
+| list without a filter gets /courses with the bearer token | `list()` | empty query string; `Bearer access-1`; the DTO list is returned | adaptor |
+| list with mine asks for mine=true | `list({ mine: true })` | query `mine=true`, no `pending` | adaptor |
+| list with pending asks for pending=true | `list({ pending: true })` | query `pending=true` | adaptor |
+| create posts a body the contract accepts | title, description, capacity, price, `startsAt`, `endsAt` | `CreateCourseBody.parse(body)` equals the input; the DTO is returned | adaptor |
+| update patches /courses/:id with a body the contract accepts | `capacity: 5, registrationOpen: false` | `PATCH /courses/c1`; `UpdateCourseBody.parse` equals the input | adaptor |
+| update sends the schedule as startsAt and endsAt | a start and end | body has `startsAt` and `endsAt` | adaptor |
+| review posts the decision to /courses/:id/approval | `review('c1', true)` | `ApprovalBody.parse(body)` is `{ approved: true }` | adaptor |
+| cancel posts the reason to /courses/:id/cancel and returns the refund count | reply `data: 3`, reason `ฝนตก` | returns 3; `CancelCourseBody.parse(body)` is `{ reason: 'ฝนตก' }` | adaptor |
+| a failed update surfaces `<code>` as the error code (4 tests) | `PATCH` fails with `capacity_below_booked` 400, `course_cancelled` 400, `admin01_required` 403, `course_not_found` 404 | `DomainError.code` is the server message | adaptor |
+| an id is URL-encoded in the path | `update('a/b', ...)` | request path is `/courses/a%2Fb` | adaptor |
+
+### `integration/bookings-gateway.test.ts` (11 tests)
+
+Setup: as above, with `createBookSeat`, `createLoadMyBookings`, `createLoadBooking`, `createLoadActiveBookings` and
+`createLoadCourseRoster` on top of the gateway.
+
+| Test name | Input / setup | What is validated / expected | Layer |
+|---|---|---|---|
+| book posts {courseId, studentName} to /bookings with the bearer token and returns the booking | `POST /bookings` answers 201 | body equals `{ courseId, studentName }` and passes `BookSeatBody`; `Bearer access-1`; the booking is returned | adaptor |
+| book with a blank student name rejects student_name_required without a request | `'   '` | code `student_name_required`; zero network calls | use-cases |
+| book surfaces the API error code (course_full) | `POST /bookings` answers 400 `course_full` | code `course_full` | adaptor |
+| load my bookings gets /bookings/mine and merges nothing client-side (proofs come joined) | two bookings with joined `courses` and `payment_proofs` | the result equals the reply; one request | adaptor |
+| load my bookings rejects with the API code | 500 `Internal server error` | that message as the code | adaptor |
+| load booking gets /bookings/:id (encoded) for the receipt | id `b/1` | path `/bookings/b%2F1`; the booking is returned | adaptor |
+| load booking of someone else rejects booking_not_found | 404 | code `booking_not_found` | adaptor |
+| active bookings get /bookings/active | rows `{ id, course_id, status }` | rows returned | adaptor |
+| course roster gets /courses/:id/roster | roster rows | rows returned; method `GET` | adaptor |
+| course roster of another teacher rejects forbidden | 403 | code `forbidden` | adaptor |
+| ActiveBooking equals the contract ActiveBookingDto | `expectTypeOf` | the port type equals the contract DTO | contract |
+
+### `integration/payments-gateway.test.ts` (9 tests)
+
+Setup: a client plus the payments gateway; `Course` and refund fixtures typed with `CourseDto` and `RefundReportDto`.
+
+| Test name | Input / setup | What is validated / expected | Layer |
+|---|---|---|---|
+| request with a Blob body sends the blob as is with its own content type | `client.request('PUT', '/upload', blob)` where the blob is `image/webp` | `content-type: image/webp` and `init.body` is the same `Blob` object, not JSON | adaptor |
+| a Blob body is sent again on the retry after a token refresh | route accepts only `access-2` (401 first), refresh returns session 2, an `image/png` blob | calls `/upload`, `/auth/refresh`, `/upload`; the retry sends the same blob and content type | adaptor |
+| submit sends PUT /bookings/:id/proof with the file bytes, its content type and the bearer token | `File` with the PNG signature bytes | method `PUT`, `Bearer access-1`, `content-type: image/png`, body bytes equal `137 80 78 71` | adaptor |
+| submit surfaces the server code, e.g. booking_not_found | 404 | rejects with a `DomainError`, code `booking_not_found` | adaptor |
+| submit maps a 413 to proof_size_exceeded | 413 `proof_size_exceeded` | rejects with that code (a server-side limit surfaces the same code as the client check) | adaptor |
+| confirm sends POST /bookings/:id/confirm-payment without a body | `confirm('b1')` | `init.body` is `undefined`; bearer token present | adaptor |
+| confirm surfaces payment_proof_required | 400 | code `payment_proof_required` | adaptor |
+| load reads GET /admin/payments and maps courses and refunds | reply `{ courses, refunds }` | the use case returns the same object | adaptor |
+| load as a non-admin rejects forbidden | 403 | code `forbidden` | adaptor |
+
+## Validation matrix
+
+Client-side validations only. The same rules are enforced again by the API; those tests are in the
+[backend catalog](/test-catalog-backend).
+
+| Input | Rule in the frontend | Error code | Message shown (`errorText`) | Tested in |
+|---|---|---|---|---|
+| Payment proof file type | only `image/jpeg`, `image/png`, `image/webp` | `proof_type_invalid` | เลือกไฟล์ JPG, PNG หรือ WebP | `use-cases/payments.test.ts` (PDF), `format.test.ts` (text) |
+| Payment proof size | at most 5 MiB (5 242 880 bytes) | `proof_size_exceeded` | ไฟล์ต้องมีขนาดไม่เกิน 5 MB | `use-cases/payments.test.ts` (5 MiB + 1 byte), `payments-gateway.test.ts` (server 413) |
+| Proof checks happen before upload | a rejected file never reaches the gateway | n/a | n/a | `use-cases/payments.test.ts` (log stays empty) |
+| Student name | trimmed; blank rejected before the request | `student_name_required` | กรุณากรอกชื่อผู้เรียน | `bookings-gateway.test.ts` (no request made) |
+| Course schedule | both dates must parse and the end must be after the start | `invalid_course_schedule` | วันเวลาเรียนไม่ถูกต้อง เวลาสิ้นสุดต้องหลังเวลาเริ่ม | `use-cases/courses.test.ts` (create and update) |
+| Cancellation reason | trimmed; blank rejected | `cancellation_reason_required` | กรุณาระบุเหตุผลที่ยกเลิกคอร์ส | `use-cases/courses.test.ts` |
+| Course form numbers and text | strings trimmed, `capacity` and `price` converted to numbers | n/a | n/a | `use-cases/courses.test.ts` |
+| Request bodies | gateway bodies must satisfy the contract zod schemas | n/a (a schema failure is a test failure) | n/a | `courses-gateway.test.ts`, `bookings-gateway.test.ts` |
+| Stored session | `localStorage` value must parse as JSON and pass the contract `Session` schema (non-empty tokens, numeric `expiresAt`); anything else is treated as signed out | n/a (no error, `null`) | n/a | `http-client.test.ts`, sessionStore "ignores corrupt stored data" |
+| Theme choice | stored value must be exactly `light`, `dark` or `system` | n/a (falls back to `system`) | n/a | `theme.test.ts` |
+| API base URL | a production build without `VITE_API_URL` throws at startup | n/a (startup error) | n/a | `api-base.test.ts` |
+
+### Error code to Thai message
+
+`errorText` in `src/lib/format.ts` has 23 entries plus a fallback. The "Unit tested" column is `yes` only for codes asserted in
+`format.test.ts`; the others are asserted indirectly or only by the Playwright specs.
+
+| Code | Thai text | Unit tested |
+|---|---|---|
+| `course_full` | คอร์สนี้เต็มแล้ว | yes (also e2e `booking-payment.spec.ts`) |
+| `forbidden` | คุณไม่มีสิทธิ์ทำรายการนี้ | yes |
+| `invalid_course_schedule` | วันเวลาเรียนไม่ถูกต้อง เวลาสิ้นสุดต้องหลังเวลาเริ่ม | yes |
+| `course_not_found` | ไม่พบคอร์สนี้ | yes |
+| `proof_type_invalid` | เลือกไฟล์ JPG, PNG หรือ WebP | yes |
+| `proof_size_exceeded` | ไฟล์ต้องมีขนาดไม่เกิน 5 MB | yes |
+| `course_not_pending` | คอร์สนี้ผ่านการพิจารณาแล้ว | yes |
+| `already_booked` | คุณจองคอร์สนี้ไว้แล้ว ดูได้ที่หน้า "การจองของฉัน" | yes |
+| `booking_not_found` | ไม่พบการจองนี้ | yes |
+| `Invalid login credentials` | อีเมลหรือรหัสผ่านไม่ถูกต้อง | no, e2e `auth.spec.ts` asserts it |
+| `course_cancelled`, `course_already_cancelled` | คอร์สนี้ถูกยกเลิกแล้ว, คอร์สนี้ถูกยกเลิกไปแล้ว | no |
+| `cancellation_reason_required` | กรุณาระบุเหตุผลที่ยกเลิกคอร์ส | no (the code is tested, not its text) |
+| `admin_required` | เฉพาะผู้ดูแลระบบเท่านั้นที่ทำรายการนี้ได้ | no |
+| `registration_closed` | คอร์สนี้ปิดรับสมัครแล้ว | no |
+| `student_name_required` | กรุณากรอกชื่อผู้เรียน | no (the code is tested, not its text) |
+| `already_paid` | การจองนี้ชำระเงินแล้ว ไม่มีการเก็บเงินซ้ำ | no |
+| `capacity_below_booked` | ลดจำนวนรับให้ต่ำกว่าที่นั่งที่จองไปแล้วไม่ได้ | no (the code is tested, not its text) |
+| `not_authenticated` | กรุณาเข้าสู่ระบบก่อน | no |
+| `duplicate_request` | คำขอนี้กำลังดำเนินการอยู่ รอสักครู่แล้วโหลดหน้านี้ใหม่ | no |
+| `network_error`, `timeout` | เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ ลองใหม่อีกครั้ง, เซิร์ฟเวอร์ตอบช้าเกินไป ลองใหม่อีกครั้ง | no (the codes are tested in `http-client.test.ts`, not their text) |
+| `rate_limited` | ลองเข้าสู่ระบบบ่อยเกินไป รอสักครู่แล้วลองใหม่ | no |
+| any other message | ทำรายการไม่สำเร็จ (code) | yes |
+
+## Gaps
+
+- **No React component or hook tests.** Vitest runs with `environment: 'node'`; there is no jsdom or Testing Library. Pages,
+  feature components, `ThemeProvider`, `useTheme`, `useAutoRefresh` (the hook, as opposed to `createAutoRefresh`) and
+  the route guard are exercised only by Playwright ([Project test catalog](/test-catalog-project)). A render bug that the
+  specs do not walk through is not caught by any unit test.
+- **Pages are covered only by e2e, and some flows by nothing.** The specs never open `PaymentsPage` (the payment system and refund
+  report view), reject a course (`ปฏิเสธ` in the approval queue), open the roster dialog, edit a course schedule as a teacher, or
+  change capacity and registration from the admin table. Receipt and booking pages are covered through one happy path.
+- **`src/lib/format.ts` is tested only for `errorText`.** `baht`, `dateTime`, `courseSchedule`, `parentCourseSchedule`,
+  `holdIsLive`, `holdsSeat`, `bookingStatus` and `countdown` have no unit test.
+- **14 of the 23 `errorText` messages have no unit test** (table above); a typo in one of them is not caught.
+- **Use cases without a direct unit test:** `loadMyBookings`, `loadBooking`, `loadActiveBookings`, `loadCourseRoster`
+  and `bookSeat` are exercised only through the gateway integration tests (with the real gateway, not a fake port).
+- **Static rules cover only what the regexes see.** The styling test matches literal `className="..."`; a class string
+  built in a variable, a template literal with `${}`, or `className={cond ? 'a' : 'b'}` is not flagged. The dark-variant test
+  skips template literals with interpolation and the palette families it does not list.
+- **No test of the built bundle.** `npm run build` (typecheck and Vite build) runs in CI next to the unit tests, but nothing
+  asserts the bundle content, for example that no service key is inlined.

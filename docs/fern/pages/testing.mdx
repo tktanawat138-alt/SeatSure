@@ -90,7 +90,8 @@ registry entry and vice versa, operation ids are unique, and every `$ref` resolv
 
 ## Demo of the bug protection
 
-The backend integration tests run in two modes: normal, and `unsafe` (`npm run test:unsafe` in `apps/backend`), which swaps
-the booking and payment SQL functions for check-then-write versions without locking, so the tests prove they would catch
-overbooking and double charging. The repository `README.md` has the table of what fails in unsafe mode and how to switch
-back.
+The backend integration tests run in two modes: normal, and `unsafe` (`npm run test:unsafe` in `apps/backend`). Unsafe mode
+switches `book_seat` to a check-then-write version without the row lock, so the overbooking tests prove they would catch the
+bug: three tests fail on purpose (20 users for one seat, 25 users for 5 seats, and the same race through the API). Only
+`book_seat` reads the mode: `pay_booking` is retired and `confirm_transfer_payment` always locks, so double charging cannot be
+demonstrated this way. The global setup restores the safe mode afterwards. See the [backend test catalog](/test-catalog-backend).
