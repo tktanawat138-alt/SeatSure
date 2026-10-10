@@ -94,8 +94,8 @@ export const PaymentSystemDto = z.object({
 })
 
 export const Session = z.object({
-  accessToken: z.string(),
-  refreshToken: z.string(),
+  accessToken: z.string().min(1),
+  refreshToken: z.string().min(1),
   expiresAt: z.number(), // epoch seconds
 })
 

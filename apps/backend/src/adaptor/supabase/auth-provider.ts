@@ -19,6 +19,13 @@ const isRejection = (error: unknown) =>
 const unavailable = (step: string, error: unknown) =>
   new Error(`Supabase auth ${step} failed${isAuthError(error) && error.status ? ` (status ${error.status})` : ''}`)
 
+/** Maps a sign-in or refresh failure: 429 is rate_limited, other 4xx `rejected`, the rest unexpected. */
+export function authFailure(step: string, error: unknown, rejected: string): Error {
+  if (isAuthError(error) && error.status === 429) return new DomainError('rate_limited')
+  if (isRejection(error)) return new DomainError(rejected)
+  return unavailable(step, error)
+}
+
 function toSession(session: SupabaseSession | null): AuthSession {
   if (!session) throw new DomainError('not_authenticated')
   return {
@@ -37,19 +44,13 @@ export function createSupabaseAuthProvider(config: SupabaseAuthConfig): AuthProv
   return {
     async signIn(email, password) {
       const { data, error } = await anon().auth.signInWithPassword({ email, password })
-      if (error) {
-        if (isRejection(error)) throw new DomainError('Invalid login credentials')
-        throw unavailable('sign-in', error)
-      }
+      if (error) throw authFailure('sign-in', error, 'Invalid login credentials')
       return toSession(data.session)
     },
 
     async refresh(refreshToken) {
       const { data, error } = await anon().auth.refreshSession({ refresh_token: refreshToken })
-      if (error) {
-        if (isRejection(error)) throw new DomainError('not_authenticated')
-        throw unavailable('refresh', error)
-      }
+      if (error) throw authFailure('refresh', error, 'not_authenticated')
       return toSession(data.session)
     },
 

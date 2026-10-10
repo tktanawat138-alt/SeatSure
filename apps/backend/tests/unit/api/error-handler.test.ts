@@ -19,6 +19,7 @@ describe('errorHandler', () => {
     ['not_authenticated', 401],
     ['Invalid login credentials', 401],
     ['forbidden', 403],
+    ['rate_limited', 429],
     ['course_not_found', 404],
     ['booking_not_found', 404],
     ['course_full', 400],

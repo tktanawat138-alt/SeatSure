@@ -35,6 +35,7 @@ export function fakeAuthProvider() {
   const provider: AuthProvider & { signedOut: string[] } = {
     signedOut,
     async signIn(email, password) {
+      if (email === 'busy@test') throw new DomainError('rate_limited')
       const account = accounts.find((a) => a.email === email && a.password === password)
       if (!account) throw new DomainError('Invalid login credentials')
       return sessionFor(account.id)

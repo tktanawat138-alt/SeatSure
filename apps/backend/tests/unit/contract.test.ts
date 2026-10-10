@@ -120,6 +120,10 @@ describe('contract DTOs reject bad shapes', () => {
   it('RosterRowDto rejects a missing profile', () => expect(RosterRowDto.safeParse({ ...rosterRow, profiles: undefined }).success).toBe(false))
   it('Me rejects an unknown role', () => expect(Me.safeParse({ id: UUID, email: 'a@b.co', fullName: 'A', role: 'root' }).success).toBe(false))
   it('Session rejects a missing refreshToken', () => expect(Session.safeParse({ accessToken: 'a', expiresAt: 1 }).success).toBe(false))
+  it('Session rejects an empty refreshToken or accessToken', () => {
+    expect(Session.safeParse({ accessToken: 'a', refreshToken: '', expiresAt: 1 }).success).toBe(false)
+    expect(Session.safeParse({ accessToken: '', refreshToken: 'r', expiresAt: 1 }).success).toBe(false)
+  })
 })
 
 describe('LoginBody', () => {

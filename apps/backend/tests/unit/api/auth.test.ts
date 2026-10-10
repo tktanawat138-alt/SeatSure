@@ -28,6 +28,13 @@ describe('POST /auth/login', () => {
     expect(res.body).toEqual({ success: false, message: 'Invalid login credentials' })
   })
 
+  it('rate-limited sign-in returns 429 rate_limited', async () => {
+    const { app } = setup()
+    const res = await request(app).post('/auth/login').send({ email: 'busy@test', password: 'pw' })
+    expect(res.status).toBe(429)
+    expect(res.body).toEqual({ success: false, message: 'rate_limited' })
+  })
+
   it('missing password returns 400 with a field error', async () => {
     const { app } = setup()
     const res = await request(app).post('/auth/login').send({ email: 'parent@test' })
