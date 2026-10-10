@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { Banknote, BookOpen, CalendarCheck, LogOut, Settings, Users, type LucideIcon } from 'lucide-react'
+import { Banknote, BookOpen, CalendarCheck, Gauge, LogOut, Settings, Users, type LucideIcon } from 'lucide-react'
 import { Link, NavLink } from 'react-router'
 import { Logo } from '@/components/logo'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
@@ -38,6 +38,7 @@ const navItems: Record<Role, { to: string; label: string; icon: LucideIcon }[]> 
   admin: [
     { to: '/', label: 'จัดการคอร์ส', icon: Settings },
     { to: '/payments', label: 'ระบบชำระเงิน', icon: Banknote },
+    { to: '/quality', label: 'คุณภาพระบบ', icon: Gauge },
   ],
 }
 
