@@ -8,6 +8,7 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
+      '@contract': fileURLToPath(new URL('../backend/src/adaptor/http/contract.ts', import.meta.url)),
     },
   },
   // Unit + integration (adaptors over a stubbed network). DB integration lives in apps/backend,
