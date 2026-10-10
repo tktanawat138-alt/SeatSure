@@ -58,3 +58,7 @@ TOKEN=$(curl -s localhost:3001/auth/login -H 'content-type: application/json' \
 
 curl -s localhost:3001/me -H "authorization: Bearer $TOKEN"
 ```
+
+## Start everything
+
+`task up:all` runs `task up` and also starts the Fern docs preview (3000), the Vitest UIs (frontend 51205, backend 51204, cross-app 51206) and a 5 minute k6 run with its live dashboard (5665), waits until they answer, prints every URL (the Vitest UI links carry a `?token=`) and opens them in the browser. Use `OPEN=0 task up:all` to only print. `task down:all` stops all of it. Logs: `.docs.log`, `.vitest-*.log`, `.k6.log`. k6 is skipped with a warning when it is not installed.

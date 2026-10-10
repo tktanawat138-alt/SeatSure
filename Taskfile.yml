@@ -19,6 +19,79 @@ tasks:
       - task: backend:api:down
       - task: backend:down
 
+  up:all:
+    desc: Start EVERY service (backend, API, web app, Fern docs, Vitest UIs, k6 dashboard) and open them in the browser (OPEN=0 to skip opening)
+    cmds:
+      - task: up
+      - task: docs:up
+      - task: ui:up
+      - task: k6:up
+      - task: urls
+
+  down:all:
+    desc: Stop everything started by up:all, then the normal task down
+    cmds:
+      - lsof -ti tcp:3000,51204,51205,51206,5665 | xargs kill 2>/dev/null || true
+      - pkill -f "fern-api docs dev" 2>/dev/null || true
+      - pkill -x k6 2>/dev/null || true
+      - task: down
+
+  docs:up:
+    desc: Start the Fern docs preview in the background (http://localhost:3000, first run downloads a bundle)
+    dir: docs
+    cmds:
+      - npm install --silent
+      - lsof -ti tcp:3000 | xargs kill 2>/dev/null || true
+      - bash -c 'nohup npx fern-api docs dev > ../.docs.log 2>&1 < /dev/null & disown' > /dev/null 2>&1 < /dev/null
+      - echo "docs http://localhost:3000 (log .docs.log)"
+
+  ui:up:
+    desc: Start the Vitest UIs in the background (frontend 51205, backend 51204, cross-app 51206)
+    cmds:
+      - lsof -ti tcp:51204,51205,51206 | xargs kill 2>/dev/null || true
+      - bash -c 'cd apps/frontend && nohup npx vitest --ui --watch --open=false --api.port=51205 > ../../.vitest-frontend.log 2>&1 < /dev/null & disown' > /dev/null 2>&1 < /dev/null
+      - bash -c 'cd apps/backend && nohup npx vitest --ui --watch --open=false --api.port=51204 > ../../.vitest-backend.log 2>&1 < /dev/null & disown' > /dev/null 2>&1 < /dev/null
+      - bash -c 'cd tests && nohup npx vitest --ui --watch --open=false --api.port=51206 > ../.vitest-cross.log 2>&1 < /dev/null & disown' > /dev/null 2>&1 < /dev/null
+
+  k6:up:
+    desc: Start a 5 minute k6 load run in the background with the live dashboard (http://127.0.0.1:5665); skipped if k6 is missing
+    dir: tests
+    cmds:
+      - |
+        if ! command -v k6 >/dev/null 2>&1; then
+          echo "WARN: k6 not found, skipping the dashboard (brew install k6)"
+          exit 0
+        fi
+        lsof -ti tcp:5665 | xargs kill 2>/dev/null || true
+        bash -c 'K6_WEB_DASHBOARD=true K6_WEB_DASHBOARD_PORT=5665 nohup k6 run --quiet --stage 30s:10,4m:25,30s:0 load/auth.js > ../.k6.log 2>&1 < /dev/null & disown' > /dev/null 2>&1 < /dev/null
+
+  urls:
+    desc: Wait for the services, print their URLs and open them in the browser (OPEN=0 to only print)
+    silent: true
+    cmds:
+      - |
+        wait_for() { for i in $(seq 1 60); do curl -s -o /dev/null "$1" && return 0; sleep 2; done; return 1; }
+        vitest_url() { grep -m1 -o "http://localhost:$2/__vitest__/?token=[a-f0-9-]*" "$1" 2>/dev/null; }
+        wait_for http://localhost:5173/ ; wait_for http://localhost:3001/health ; wait_for http://localhost:3000/
+        sleep 3
+        FRONT=$(vitest_url .vitest-frontend.log 51205); BACK=$(vitest_url .vitest-backend.log 51204); CROSS=$(vitest_url .vitest-cross.log 51206)
+        URLS="http://localhost:5173 http://localhost:3001/health http://localhost:3000 $FRONT $BACK $CROSS"
+        command -v k6 >/dev/null 2>&1 && URLS="$URLS http://127.0.0.1:5665"
+        echo ""
+        echo "SeatSure services"
+        echo "  web app        http://localhost:5173"
+        echo "  API            http://localhost:3001/health"
+        echo "  Supabase       http://localhost:54321 (Studio http://localhost:54323)"
+        echo "  Fern docs      http://localhost:3000"
+        echo "  Vitest UI fe   ${FRONT:-http://localhost:51205 (still starting, see .vitest-frontend.log)}"
+        echo "  Vitest UI be   ${BACK:-http://localhost:51204 (still starting, see .vitest-backend.log)}"
+        echo "  Vitest UI x    ${CROSS:-http://localhost:51206 (still starting, see .vitest-cross.log)}"
+        command -v k6 >/dev/null 2>&1 && echo "  k6 dashboard   http://127.0.0.1:5665 (5 minute run)"
+        echo "  stop all:      task down:all"
+        if [ "${OPEN:-1}" != "0" ]; then
+          if command -v open >/dev/null 2>&1; then open $URLS; elif command -v xdg-open >/dev/null 2>&1; then for u in $URLS; do xdg-open "$u" >/dev/null 2>&1; done; fi
+        fi
+
   test:
     desc: Run every level - unit, integration (frontend, backend, cross-app), e2e
     cmds:
@@ -84,6 +157,13 @@ tasks:
       - k6 run load/smoke.js
       - k6 run load/auth.js
       - k6 run load/booking.js
+
+  test:load:dashboard:
+    desc: k6 auth load for 5 minutes with the live dashboard at http://127.0.0.1:5665 (needs task up)
+    dir: tests
+    deps: [backend:up]
+    cmds:
+      - K6_WEB_DASHBOARD=true K6_WEB_DASHBOARD_OPEN=true k6 run --stage 30s:10,4m:25,30s:0 load/auth.js
 
   test:ui:frontend:
     desc: Vitest UI for the frontend unit + integration tests (https://vitest.dev/guide/ui)
