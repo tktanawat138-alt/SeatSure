@@ -10,7 +10,12 @@ import { courseRosterGateway } from '@/adaptor/supabase/course-roster-gateway'
 import { createLoadCourseRoster } from '@/use-cases/load-course-roster'
 import { createLoadMyBookings } from '@/use-cases/load-my-bookings'
 import { myBookingsGateway } from '@/adaptor/supabase/my-bookings-gateway'
-import { courseScheduleGateway } from '@/adaptor/supabase/course-schedule-gateway'
+import { coursesGateway } from '@/adaptor/http/courses-gateway'
+import { createCancelCourse } from '@/use-cases/cancel-course'
+import { createCreateCourse } from '@/use-cases/create-course'
+import { createListCourses } from '@/use-cases/list-courses'
+import { createReviewCourse } from '@/use-cases/review-course'
+import { createUpdateCourse } from '@/use-cases/update-course'
 import { createLoadPaymentSystem } from '@/use-cases/load-payment-system'
 import { createConfirmPaymentProof, createSubmitPaymentProof } from '@/use-cases/submit-payment-proof'
 import { createUpdateCourseSchedule } from '@/use-cases/update-course-schedule'
@@ -20,7 +25,12 @@ export const confirmPaymentProof = createConfirmPaymentProof(paymentProofGateway
 export const loadPaymentSystem = createLoadPaymentSystem(paymentSystemGateway)
 export const loadCourseRoster = createLoadCourseRoster(courseRosterGateway)
 export const loadMyBookings = createLoadMyBookings(myBookingsGateway)
-export const updateCourseSchedule = createUpdateCourseSchedule(courseScheduleGateway)
+export const updateCourseSchedule = createUpdateCourseSchedule(coursesGateway)
+export const listCourses = createListCourses(coursesGateway)
+export const createCourse = createCreateCourse(coursesGateway)
+export const updateCourse = createUpdateCourse(coursesGateway)
+export const reviewCourse = createReviewCourse(coursesGateway)
+export const cancelCourse = createCancelCourse(coursesGateway)
 
 // removed in Task 8 with supabase-js: pages still read data through the legacy client, so its
 // persisted session must never outlive an API sign-in or sign-out (it could be another user's).

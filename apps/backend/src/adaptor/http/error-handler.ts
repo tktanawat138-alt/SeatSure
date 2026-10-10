@@ -6,7 +6,7 @@ type Failure = { success: false; message: string; errors?: { field: string; mess
 
 function statusOf(code: string): number {
   if (code === 'not_authenticated' || code === 'Invalid login credentials') return 401
-  if (code === 'forbidden') return 403
+  if (code === 'forbidden' || code === 'admin01_required') return 403
   if (code === 'rate_limited') return 429
   if (code.endsWith('_not_found')) return 404
   return 400
