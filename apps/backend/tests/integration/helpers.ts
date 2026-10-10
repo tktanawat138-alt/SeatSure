@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
-import type { Database } from '../../../frontend/src/lib/database.types'
+import type { Database } from '../../src/adaptor/supabase/database.types'
 
 export type Client = SupabaseClient<Database>
 type Role = Database['public']['Enums']['user_role']

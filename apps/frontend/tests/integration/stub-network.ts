@@ -22,12 +22,6 @@ export function stubNetwork(...routes: Route[]) {
   return calls
 }
 
-export const table = (name: string, reply: Reply): Route => (url) =>
-  url.pathname === `/rest/v1/${name}` ? reply : undefined
-
-export const rpc = (name: string, reply: Reply): Route => (url) =>
-  url.pathname === `/rest/v1/rpc/${name}` ? reply : undefined
-
 type Handler = Reply | ((init?: RequestInit) => Reply)
 
 /** A backend API route. The reply may be a function of the request, e.g. to check its headers. */

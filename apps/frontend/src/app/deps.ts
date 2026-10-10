@@ -1,6 +1,5 @@
 import { authGateway } from '@/adaptor/http/auth-gateway'
 import { sessionStore } from '@/adaptor/http/session-store'
-import { supabase } from '@/lib/supabase'
 import { createLoadMe } from '@/use-cases/load-me'
 import { createSignIn } from '@/use-cases/sign-in'
 import { createSignOut } from '@/use-cases/sign-out'
@@ -36,23 +35,8 @@ export const updateCourse = createUpdateCourse(coursesGateway)
 export const reviewCourse = createReviewCourse(coursesGateway)
 export const cancelCourse = createCancelCourse(coursesGateway)
 
-// removed in Task 8 with supabase-js: pages still read data through the legacy client, so its
-// persisted session must never outlive an API sign-in or sign-out (it could be another user's).
-const forgetLegacySession = () => supabase.auth.signOut({ scope: 'local' }).then(
-  () => undefined,
-  () => undefined,
-)
-const apiSignIn = createSignIn(authGateway)
-const apiSignOut = createSignOut(authGateway)
-
-export const signIn = async (email: string, password: string) => {
-  await forgetLegacySession()
-  await apiSignIn(email, password)
-}
-export const signOut = async () => {
-  await forgetLegacySession()
-  await apiSignOut()
-}
+export const signIn = createSignIn(authGateway)
+export const signOut = createSignOut(authGateway)
 export const loadMe = createLoadMe(authGateway)
 /** Fires with the new session (or null) whenever tokens are stored or forgotten. */
 export const onSessionChange = sessionStore.subscribe

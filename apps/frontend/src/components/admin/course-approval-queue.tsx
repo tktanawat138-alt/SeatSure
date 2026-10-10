@@ -1,6 +1,6 @@
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import type { Course } from '@/lib/supabase'
+import type { Course } from '@/entities/course'
 import * as s from './course-approval-queue.styles'
 
 export function CourseApprovalQueue({

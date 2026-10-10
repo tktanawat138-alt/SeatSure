@@ -153,10 +153,10 @@ tasks:
       - npm run seed
 
   backend:types:
-    desc: Regenerate apps/frontend/src/lib/database.types.ts after a schema change
+    desc: Regenerate apps/backend/src/adaptor/supabase/database.types.ts after a schema change
     dir: apps/backend
     cmds:
-      - supabase gen types typescript --local > ../frontend/src/lib/database.types.ts
+      - supabase gen types typescript --local > src/adaptor/supabase/database.types.ts
 
   frontend:install:
     internal: true

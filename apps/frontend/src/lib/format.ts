@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import type { Booking } from './supabase'
+import type { Booking } from '@/entities/booking'
 
 const bahtFormat = new Intl.NumberFormat('th-TH', {
   style: 'currency',

@@ -13,7 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { useAuth } from '@/lib/auth'
 import { bookingStatus, courseSchedule, dateTime, errorText, holdsSeat } from '@/lib/format'
 import * as styles from './TeacherPage.styles'
-import type { Course } from '@/lib/supabase'
+import type { Course } from '@/entities/course'
 import type { ActiveBooking } from '@/interfaces/bookings-gateway'
 import { createCourse, listCourses, loadActiveBookings, updateCourseSchedule } from '@/app/deps'
 import { useAutoRefresh } from '@/lib/use-auto-refresh'

@@ -17,7 +17,7 @@ import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Spinner } from '@/components/ui/spinner'
 import { Textarea } from '@/components/ui/textarea'
-import type { Profile } from '@/lib/supabase'
+import type { Profile } from '@/entities/profile'
 import * as s from './add-course-dialog.styles'
 
 export interface CourseDraft {

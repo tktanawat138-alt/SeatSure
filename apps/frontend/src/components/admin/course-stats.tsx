@@ -1,6 +1,6 @@
 import { Armchair, BookOpen, DoorOpen, TriangleAlert, type LucideIcon } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
-import type { Course } from '@/lib/supabase'
+import type { Course } from '@/entities/course'
 import * as s from './course-stats.styles'
 
 interface Stat {

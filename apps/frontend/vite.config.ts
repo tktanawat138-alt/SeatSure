@@ -12,10 +12,10 @@ export default defineConfig({
     },
   },
   // Unit + integration (adaptors over a stubbed network). DB integration lives in apps/backend,
-  // cross-app integration and e2e in /tests. The Supabase and API URLs are fake: no test here reaches a real server.
+  // cross-app integration and e2e in /tests. The API URL is fake: no test here reaches a real server.
   test: {
     environment: 'node',
     include: ['tests/{unit,integration}/**/*.test.ts'],
-    env: { VITE_SUPABASE_URL: 'http://supabase.test', VITE_SUPABASE_ANON_KEY: 'test-anon-key', VITE_API_URL: 'http://api.test' },
+    env: { VITE_API_URL: 'http://api.test' },
   },
 })

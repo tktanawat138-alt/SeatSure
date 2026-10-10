@@ -44,10 +44,7 @@ export function createAutoRefresh(refresh: () => void | Promise<void>, options: 
 }
 
 /** Refresh visible data every 15 s and when the tab becomes visible again. Always calls the latest `refresh`. */
-export function useAutoRefresh(
-  refresh: () => void | Promise<void>,
-  ..._legacyTables: string[] // removed when every caller drops the table list
-) {
+export function useAutoRefresh(refresh: () => void | Promise<void>) {
   const latest = useRef(refresh)
   useEffect(() => {
     latest.current = refresh
