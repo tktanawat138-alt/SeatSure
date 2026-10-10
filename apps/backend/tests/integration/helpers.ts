@@ -133,17 +133,24 @@ export async function paymentsFor(bookingId: string) {
   return data
 }
 
-/** Removes everything this test file created. Payments and bookings go first (no cascade). */
+/** Throws on a failed cleanup step: leftover rows hide the real failure and pile up in the local DB. */
+const must = ({ error }: { error: { message: string } | null }, step: string) => {
+  if (error) throw new Error(`cleanup: ${step}: ${error.message}`)
+}
+
+/** Removes everything this test file created. Children go first (refund reports, payments and proofs restrict deletes). */
 export async function cleanup() {
   if (created.courses.length > 0) {
-    const { data: bookings } = await admin.from('bookings').select('id').in('course_id', created.courses)
+    const { data: bookings, error } = await admin.from('bookings').select('id').in('course_id', created.courses)
+    must({ error }, 'list bookings')
     const bookingIds = (bookings ?? []).map((b) => b.id)
+    must(await admin.from('refund_reports').delete().in('course_id', created.courses), 'refund_reports')
     if (bookingIds.length > 0) {
-      await admin.from('payment_proofs').delete().in('booking_id', bookingIds)
-      await admin.from('payments').delete().in('booking_id', bookingIds)
-      await admin.from('bookings').delete().in('id', bookingIds)
+      must(await admin.from('payment_proofs').delete().in('booking_id', bookingIds), 'payment_proofs')
+      must(await admin.from('payments').delete().in('booking_id', bookingIds), 'payments')
+      must(await admin.from('bookings').delete().in('id', bookingIds), 'bookings')
     }
-    await admin.from('courses').delete().in('id', created.courses)
+    must(await admin.from('courses').delete().in('id', created.courses), 'courses')
   }
   if (created.proofs.length > 0) await admin.storage.from('payment-proofs').remove(created.proofs)
   await Promise.all(created.users.map((id) => admin.auth.admin.deleteUser(id)))
