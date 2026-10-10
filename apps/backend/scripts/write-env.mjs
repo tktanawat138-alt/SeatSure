@@ -1,4 +1,4 @@
-// Writes apps/frontend/.env.local from the running local Supabase stack.
+// Writes apps/frontend/.env.local and apps/backend/.env.local from the running local Supabase stack.
 import { execSync } from 'node:child_process'
 import { writeFileSync } from 'node:fs'
 
@@ -30,7 +30,23 @@ writeFileSync(
     `VITE_SUPABASE_ANON_KEY=${status.ANON_KEY}`,
     '# Used only by the seed script and the tests. Never exposed to the browser.',
     `SUPABASE_SERVICE_ROLE_KEY=${status.SERVICE_ROLE_KEY}`,
+    '# The Express API the frontend calls.',
+    'VITE_API_URL=http://localhost:3001',
     '',
   ].join('\n'),
 )
 console.log('Wrote apps/frontend/.env.local')
+
+writeFileSync(
+  '.env.local',
+  [
+    `SUPABASE_URL=${status.API_URL}`,
+    `SUPABASE_ANON_KEY=${status.ANON_KEY}`,
+    '# Server only. Never expose to the browser or logs.',
+    `SUPABASE_SERVICE_ROLE_KEY=${status.SERVICE_ROLE_KEY}`,
+    'FRONTEND_ORIGIN=http://localhost:5173',
+    'API_PORT=3001',
+    '',
+  ].join('\n'),
+)
+console.log('Wrote apps/backend/.env.local')

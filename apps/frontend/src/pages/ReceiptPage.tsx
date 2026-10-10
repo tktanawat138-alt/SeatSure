@@ -9,19 +9,14 @@ import { Card } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
 import { Skeleton } from '@/components/ui/skeleton'
 import { baht, dateTime, type Tone } from '@/lib/format'
-import { supabase } from '@/lib/supabase'
+import { loadBooking } from '@/app/deps'
+import type { MyBooking } from '@/entities/my-booking'
 import * as styles from './ReceiptPage.styles'
 
-async function fetchReceipt(bookingId: string) {
-  const { data } = await supabase
-    .from('bookings')
-    .select('*, courses(title), payments(*)')
-    .eq('id', bookingId)
-    .maybeSingle()
-  return data
-}
+/** Unknown, someone else's, or unreadable: all show the same "not found" state. */
+const fetchReceipt = (bookingId: string) => loadBooking(bookingId).catch(() => null)
 
-type Receipt = NonNullable<Awaited<ReturnType<typeof fetchReceipt>>>
+type Receipt = MyBooking
 
 function ReceiptRow({ label, children }: Readonly<{ label: string; children: ReactNode }>) {
   return (

@@ -15,8 +15,8 @@ export const status = cva('flex min-h-5 flex-wrap items-center gap-x-2 gap-y-1')
 export const trend = cva('inline-flex items-center gap-1 text-xs font-medium', {
   variants: {
     trend: {
-      better: 'text-emerald-700',
-      worse: 'text-red-700',
+      better: 'text-emerald-700 dark:text-emerald-300',
+      worse: 'text-red-700 dark:text-red-300',
       flat: 'text-muted-foreground',
     },
   },

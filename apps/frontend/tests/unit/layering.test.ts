@@ -35,3 +35,13 @@ describe('layer boundaries', () => {
     })
   }
 })
+
+describe('no Supabase client in the frontend', () => {
+  it('nothing under src imports @supabase or @/lib/supabase', () => {
+    for (const file of sources(SRC)) {
+      const imports = [...readFileSync(file, 'utf8').matchAll(/from\s+['"]([^'"]+)['"]/g)].map((m) => m[1])
+      const bad = imports.filter((i) => i.startsWith('@supabase') || i === '@/lib/supabase')
+      expect(bad, `${file} must not use the Supabase client; talk to the API`).toEqual([])
+    }
+  })
+})

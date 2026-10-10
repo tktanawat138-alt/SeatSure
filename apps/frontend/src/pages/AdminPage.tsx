@@ -11,12 +11,13 @@ import { PageHeader } from '@/components/page-header'
 import { EmptyState, PageError, PageLoading } from '@/components/page-state'
 import { errorText } from '@/lib/format'
 import * as styles from './AdminPage.styles'
-import { fetchCourses, supabase, type Course } from '@/lib/supabase'
+import type { Course } from '@/entities/course'
 import { useAuth } from '@/lib/auth'
-import { loadCourseRoster } from '@/app/deps'
+import { cancelCourse, listCourses, loadCourseRoster, reviewCourse, updateCourse } from '@/app/deps'
 import { useAutoRefresh } from '@/lib/use-auto-refresh'
 
-type Change = () => PromiseLike<{ error: { message: string } | null }>
+/** A thrown DomainError carries the API error code as its message, which `errorText` maps to Thai. */
+const failureText = (cause: unknown) => errorText(cause instanceof Error ? cause : { message: 'unknown_error' })
 
 export default function AdminPage() {
   const { session } = useAuth()
@@ -31,13 +32,9 @@ export default function AdminPage() {
 
   const load = useCallback(async () => {
     try {
-      const [courseList, pendingResult] = await Promise.all([
-        fetchCourses(),
-        supabase.from('courses').select('*').eq('approval_status', 'pending').order('created_at'),
-      ])
-      if (pendingResult.error) throw pendingResult.error
+      const [courseList, pendingList] = await Promise.all([listCourses(), listCourses({ pending: true })])
       setCourses(courseList)
-      setPendingCourses((pendingResult.data ?? []).map((c) => ({ ...c, teacher_name: null, seats_taken: 0 })) as Course[])
+      setPendingCourses(pendingList)
     } catch {
       setLoadError('โหลดข้อมูลไม่สำเร็จ ลองโหลดหน้านี้ใหม่')
     }
@@ -46,29 +43,34 @@ export default function AdminPage() {
   useEffect(() => {
     void load()
   }, [load])
-  useAutoRefresh(load, 'courses', 'bookings', 'payments', 'payment_proofs')
+  useAutoRefresh(load)
 
   /** Runs one change, reports its error if any, then refreshes the list. */
-  async function run(change: Change, reportError: (message: string) => void) {
+  async function run(change: () => Promise<unknown>, reportError: (message: string) => void) {
     setBusy(true)
     setLoadError('')
-    const { error } = await change()
-    if (error) reportError(errorText(error))
+    let succeeded = true
+    try {
+      await change()
+    } catch (cause) {
+      succeeded = false
+      reportError(failureText(cause))
+    }
     await load()
     setBusy(false)
-    return !error
+    return succeeded
   }
 
   /** For one-click actions, whose result is shown as a toast. */
-  async function runWithToast(change: Change, done: string) {
+  async function runWithToast(change: () => Promise<unknown>, done: string) {
     const succeeded = await run(change, (message) => toast.error(message))
     if (succeeded) toast.success(done)
     return succeeded
   }
 
-  async function reviewCourse(course: Course, approved: boolean) {
+  async function handleReview(course: Course, approved: boolean) {
     await runWithToast(
-      () => supabase.from('courses').update({ approval_status: approved ? 'approved' : 'rejected', registration_open: approved }).eq('id', course.id),
+      () => reviewCourse(course.id, approved),
       approved ? 'อนุมัติคอร์สแล้ว' : 'ปฏิเสธคอร์สแล้ว',
     )
   }
@@ -76,12 +78,12 @@ export default function AdminPage() {
   function saveCapacity(event: SubmitEvent<HTMLFormElement>, course: Course) {
     event.preventDefault()
     const capacity = Number(new FormData(event.currentTarget).get('capacity'))
-    void runWithToast(() => supabase.from('courses').update({ capacity }).eq('id', course.id), 'บันทึกแล้ว')
+    void runWithToast(() => updateCourse(course.id, { capacity }), 'บันทึกแล้ว')
   }
 
   const toggleRegistration = (course: Course) =>
     runWithToast(
-      () => supabase.from('courses').update({ registration_open: !course.registration_open }).eq('id', course.id),
+      () => updateCourse(course.id, { registrationOpen: !course.registration_open }),
       course.registration_open ? 'ปิดรับสมัครแล้ว' : 'เปิดรับสมัครแล้ว',
     )
 
@@ -98,21 +100,20 @@ export default function AdminPage() {
     }
   }
 
-  async function cancelCourse(course: Course, reason: string) {
+  async function handleCancel(course: Course, reason: string) {
     setBusy(true)
     setLoadError('')
-    const { data, error } = await supabase.rpc('cancel_course', {
-      p_course_id: course.id,
-      p_reason: reason,
-    })
-    if (error) {
-      toast.error(errorText(error))
+    let refunds: number
+    try {
+      refunds = await cancelCourse(course.id, reason)
+    } catch (cause) {
+      toast.error(failureText(cause))
       setBusy(false)
       return false
     }
     await load()
     setCourseToCancel(null)
-    toast.success(`ยกเลิกคอร์สแล้ว เพิ่มรายการคืนเงิน ${data ?? 0} รายการ`)
+    toast.success(`ยกเลิกคอร์สแล้ว เพิ่มรายการคืนเงิน ${refunds} รายการ`)
     setBusy(false)
     return true
   }
@@ -134,7 +135,7 @@ export default function AdminPage() {
 
         <CourseStats courses={courses} />
 
-        {canApproveCourses && <CourseApprovalQueue courses={pendingCourses} busy={busy} onReview={(course, approved) => void reviewCourse(course, approved)} />}
+        {canApproveCourses && <CourseApprovalQueue courses={pendingCourses} busy={busy} onReview={(course, approved) => void handleReview(course, approved)} />}
 
         {courses.length === 0 ? (
           <EmptyState icon={BookOpen} title="ยังไม่มีคอร์ส" description="กดปุ่มเพิ่มคอร์สด้านบนเพื่อสร้างคอร์สแรก" />
@@ -157,7 +158,7 @@ export default function AdminPage() {
         open={courseToCancel !== null}
         busy={busy}
         onOpenChange={(open) => { if (!open) setCourseToCancel(null) }}
-        onConfirm={cancelCourse}
+        onConfirm={handleCancel}
       />
     </>
   )

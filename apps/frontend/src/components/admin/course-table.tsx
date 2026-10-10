@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { baht } from '@/lib/format'
-import type { Course } from '@/lib/supabase'
+import type { Course } from '@/entities/course'
 import * as s from './course-table.styles'
 
 interface Actions {

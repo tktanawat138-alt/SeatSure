@@ -1,0 +1,2189 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "SeatSure API",
+    "version": "0.1.0",
+    "description": "HTTP API of SeatSure. Every success response is `{ \"success\": true, \"data\": ... }`; every failure is `{ \"success\": false, \"message\": \"<code>\", \"errors\"?: [...] }`. Generated from the endpoint registry; do not edit by hand."
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3001",
+      "description": "Local development (`task up`)"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Health",
+      "description": "Liveness check."
+    },
+    {
+      "name": "Auth",
+      "description": "Sign in, refresh, sign out and the current user."
+    },
+    {
+      "name": "Courses",
+      "description": "Course catalogue, creation, approval, updates and cancellation."
+    },
+    {
+      "name": "Bookings",
+      "description": "Seat holds, a parent's bookings and a course roster."
+    },
+    {
+      "name": "Payments",
+      "description": "Bank transfer proof, payment confirmation, admin payment overview and refund report."
+    }
+  ],
+  "paths": {
+    "/health": {
+      "get": {
+        "tags": [
+          "Health"
+        ],
+        "operationId": "health",
+        "summary": "Liveness check",
+        "description": "Answers `{ ok: true }` when the API process is up. Does not check Supabase.\n\nPublic, no token needed.",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "ok": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "ok"
+                      ],
+                      "additionalProperties": false
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": []
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "operationId": "login",
+        "summary": "Sign in with email and password",
+        "description": "Returns a session. Send `accessToken` as `Authorization: Bearer <token>` on every other call, and use `refreshToken` with `POST /auth/refresh` when the access token expires. `expiresAt` is epoch seconds. Throttled sign-ins answer `429` instead of `401`.\n\nPublic, no token needed.\n\nErrors (the `message` of the failure envelope):\n\n- `400` `Validation failed`: The body or a parameter failed validation; `errors` lists each field.\n- `401` `Invalid login credentials`: Wrong email or password.\n- `429` `rate_limited`: Too many sign-in attempts; try again later.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Session"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`Validation failed`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`Invalid login credentials`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "`rate_limited`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          }
+        },
+        "security": []
+      }
+    },
+    "/auth/refresh": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "operationId": "refreshSession",
+        "summary": "Exchange a refresh token for a new session",
+        "description": "Returns a fresh session (a new access token and a new refresh token). The old refresh token should not be reused.\n\nPublic, no token needed.\n\nErrors (the `message` of the failure envelope):\n\n- `400` `Validation failed`: The body or a parameter failed validation; `errors` lists each field.\n- `401` `not_authenticated`: The refresh token is invalid, expired or already used.\n- `429` `rate_limited`: Refresh was throttled; try again later.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefreshBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Session"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`Validation failed`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`not_authenticated`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "`rate_limited`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          }
+        },
+        "security": []
+      }
+    },
+    "/auth/logout": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "operationId": "logout",
+        "summary": "Sign out",
+        "description": "Ends this session on the server, so its access and refresh tokens stop working. Other devices stay signed in.\n\nRequires a bearer token (any role).\n\nErrors (the `message` of the failure envelope):\n\n- `401` `not_authenticated`: Missing, malformed, expired or revoked bearer token.",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "data": {
+                      "type": "null"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`not_authenticated`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/me": {
+      "get": {
+        "tags": [
+          "Auth"
+        ],
+        "operationId": "getMe",
+        "summary": "Get the signed-in user",
+        "description": "Returns the id, email, full name and role of the token owner.\n\nRequires a bearer token (any role).\n\nErrors (the `message` of the failure envelope):\n\n- `401` `not_authenticated`: Missing, invalid or expired token, or the account has no profile.",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Me"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`not_authenticated`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/courses": {
+      "get": {
+        "tags": [
+          "Courses"
+        ],
+        "operationId": "listCourses",
+        "summary": "List courses",
+        "description": "What comes back depends on the caller. Query flags: `pending=true` (admin only) returns the approval queue, oldest first; `mine=true` limits the list to the caller's own courses.\n\n- Parent: approved courses that are not cancelled (closed registration still shows, with `registration_open=false`). Pending, rejected and cancelled courses never appear.\n- Teacher: their own courses whatever the approval status (pending, approved, rejected, cancelled). Asking for the pending queue is `forbidden`.\n- Admin: every approved course, cancelled ones included. With `pending=true`, the courses waiting for review.\n\n`seats_taken` counts paid bookings plus holds that have not run out; it is 0 for courses that are not approved. Oldest course first.\n\nRequires a bearer token (any role).\n\nErrors (the `message` of the failure envelope):\n\n- `400` `Validation failed`: The body or query does not match the schema; `errors` lists the fields.\n- `401` `not_authenticated`: Missing, invalid or expired access token.\n- `403` `forbidden`: The role may not do this.",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Course"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`Validation failed`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`not_authenticated`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`forbidden`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "Courses"
+        ],
+        "operationId": "createCourse",
+        "summary": "Submit a course for approval",
+        "description": "Teachers only. The course is created for the caller with `approval_status=pending` and `registration_open=false`; it stays hidden from parents until admin01 approves it.\n\nTitle is trimmed, must not be empty and has at most 200 characters; `description` at most 2000. `capacity` is a whole number from 1 to 1000, `price` is 0 to 1,000,000 with at most 2 decimals, and `endsAt` must be after `startsAt` (ISO 8601 date-times).\n\nRequires a bearer token with role: teacher.\n\nErrors (the `message` of the failure envelope):\n\n- `400` `Validation failed`: The body or query does not match the schema; `errors` lists the fields.\n- `400` `invalid_course_schedule`: The schedule ends before it starts.\n- `401` `not_authenticated`: Missing, invalid or expired access token.\n- `403` `forbidden`: The role may not do this.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateCourseBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Course"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`Validation failed`, `invalid_course_schedule`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`not_authenticated`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`forbidden`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/courses/{id}": {
+      "patch": {
+        "tags": [
+          "Courses"
+        ],
+        "operationId": "updateCourse",
+        "summary": "Change capacity, registration or schedule",
+        "description": "Send any of `capacity`, `registrationOpen`, or `startsAt` together with `endsAt`.\n\n- Admin: `capacity` and `registrationOpen`. Changing the schedule is `forbidden`.\n- Teacher: the schedule of their own course only. Another teacher's course, or any other field, is `forbidden`.\n- Parent: `forbidden`.\n\nCapacity cannot drop below the seats already taken (`capacity_below_booked`). A cancelled course cannot reopen registration (`course_cancelled`); closing it is allowed. Returns the updated course.\n\nRequires a bearer token with role: teacher, admin.\n\nErrors (the `message` of the failure envelope):\n\n- `400` `Validation failed`: The body or query does not match the schema; `errors` lists the fields.\n- `400` `capacity_below_booked`: The new capacity is lower than the seats already taken.\n- `400` `course_cancelled`: Registration cannot be reopened on a cancelled course.\n- `400` `invalid_course_schedule`: The schedule ends before it starts.\n- `401` `not_authenticated`: Missing, invalid or expired access token.\n- `403` `forbidden`: The role may not do this.\n- `404` `course_not_found`: No course has this id (a malformed id counts as unknown).",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateCourseBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Course"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`Validation failed`, `capacity_below_booked`, `course_cancelled`, `invalid_course_schedule`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`not_authenticated`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`forbidden`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`course_not_found`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/courses/{id}/approval": {
+      "post": {
+        "tags": [
+          "Courses"
+        ],
+        "operationId": "reviewCourse",
+        "summary": "Approve or reject a submitted course",
+        "description": "Only the school admin account (`admin01@seatsure.test`) may review; other admins get `admin01_required`, other roles `forbidden`.\n\n`approved=true` sets `approval_status=approved` and opens registration; `approved=false` sets `rejected` and keeps registration closed. Returns the updated course.\n\nOnly a `pending` course can be reviewed. Reviewing an approved or rejected course again is `course_not_pending` (HTTP 409); to withdraw an approved course, cancel it so its bookings are refunded.\n\nRequires a bearer token with role: admin.\n\nErrors (the `message` of the failure envelope):\n\n- `400` `Validation failed`: The body or query does not match the schema; `errors` lists the fields.\n- `401` `not_authenticated`: Missing, invalid or expired access token.\n- `403` `forbidden`: The role may not do this.\n- `403` `admin01_required`: The caller is an admin but not the school admin account.\n- `404` `course_not_found`: No course has this id (a malformed id counts as unknown).\n- `409` `course_not_pending`: The course was already approved or rejected.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApprovalBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Course"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`Validation failed`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`not_authenticated`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`forbidden`, `admin01_required`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`course_not_found`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`course_not_pending`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/courses/{id}/cancel": {
+      "post": {
+        "tags": [
+          "Courses"
+        ],
+        "operationId": "cancelCourse",
+        "summary": "Cancel a course and report its refunds",
+        "description": "Admin role only. Closes registration, records the reason, cancels every held or paid booking, marks succeeded payments `refund_due` and writes one `refund_reports` row per paid booking.\n\n`data` is the number of refunds reported. The reason is trimmed and required. A course can be cancelled once.\n\nRequires a bearer token with role: admin.\n\nErrors (the `message` of the failure envelope):\n\n- `400` `Validation failed`: The body or query does not match the schema; `errors` lists the fields.\n- `400` `cancellation_reason_required`: The reason is blank.\n- `400` `course_already_cancelled`: The course was cancelled before.\n- `401` `not_authenticated`: Missing, invalid or expired access token.\n- `403` `forbidden`: The role may not do this.\n- `404` `course_not_found`: No course has this id (a malformed id counts as unknown).",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CancelCourseBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "data": {
+                      "type": "integer",
+                      "minimum": -9007199254740991
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`Validation failed`, `cancellation_reason_required`, `course_already_cancelled`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`not_authenticated`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`forbidden`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`course_not_found`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/bookings": {
+      "post": {
+        "tags": [
+          "Bookings"
+        ],
+        "operationId": "bookSeat",
+        "summary": "Book a seat in a course",
+        "description": "Holds one seat for the named student, as the signed-in user, and answers `201` with the new booking (status `held`). The seat count is checked under a row lock, so concurrent requests for the last seat give exactly one booking and `course_full` to the rest. An account can have one held or paid booking per course: a second request (for example a double-click) answers `already_booked`. Holds that ran out are released first. A transfer booking stays held for 7 days until payment is confirmed. The student name is trimmed; an empty or blank `studentName` answers `student_name_required` (the server checks it before the schema's non-empty rule, so it is never a `Validation failed`).\n\nRequires a bearer token (any role).\n\nErrors (the `message` of the failure envelope):\n\n- `400` `student_name_required`: The student name is empty or blank.\n- `400` `Validation failed`: `courseId` is missing or not a uuid; see `errors`.\n- `400` `course_full`: Every seat is paid or held.\n- `400` `registration_closed`: The course does not accept bookings now.\n- `400` `already_booked`: This account already holds or paid a seat in the course.\n- `400` `course_not_approved`: The course is pending, rejected or cancelled.\n- `401` `not_authenticated`: Missing, invalid or expired bearer token.\n- `404` `course_not_found`",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BookSeatBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Booking"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`student_name_required`, `Validation failed`, `course_full`, `registration_closed`, `already_booked`, `course_not_approved`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`not_authenticated`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`course_not_found`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/bookings/mine": {
+      "get": {
+        "tags": [
+          "Bookings"
+        ],
+        "operationId": "listMyBookings",
+        "summary": "List my bookings",
+        "description": "The signed-in user's own bookings, newest first, each with the course title and price, its payments (receipts and `refund_due` entries) and its transfer proof. Every role sees only its own bookings here.\n\nRequires a bearer token (any role).\n\nErrors (the `message` of the failure envelope):\n\n- `401` `not_authenticated`: Missing, invalid or expired bearer token.",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Booking"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`not_authenticated`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/bookings/active": {
+      "get": {
+        "tags": [
+          "Bookings"
+        ],
+        "operationId": "listActiveBookings",
+        "summary": "List held and paid bookings I can see",
+        "description": "Bookings with status `held` or `paid`, oldest first, without joins. A parent gets their own; a teacher gets their own plus the bookings of the courses they teach; an admin gets all. A `held` row whose `hold_expires_at` has passed no longer holds a seat: the client compares it with the current time (paid, or held and not yet expired, holds a seat). Used by the course cards (\"already booked\") and the teacher's student lists.\n\nRequires a bearer token (any role).\n\nErrors (the `message` of the failure envelope):\n\n- `401` `not_authenticated`: Missing, invalid or expired bearer token.",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/ActiveBooking"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`not_authenticated`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/bookings/{id}": {
+      "get": {
+        "tags": [
+          "Bookings"
+        ],
+        "operationId": "getBooking",
+        "summary": "Get one of my bookings",
+        "description": "One booking of the signed-in user with course, payments and transfer proof (the receipt page). Bookings of other accounts, unknown ids and malformed ids all answer `booking_not_found`, so the API does not reveal whether a booking exists.\n\nRequires a bearer token (any role).\n\nErrors (the `message` of the failure envelope):\n\n- `401` `not_authenticated`: Missing, invalid or expired bearer token.\n- `404` `booking_not_found`: No booking with this id belongs to you.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Booking"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`not_authenticated`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`booking_not_found`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/courses/{id}/roster": {
+      "get": {
+        "tags": [
+          "Bookings"
+        ],
+        "operationId": "getCourseRoster",
+        "summary": "List the students of a course",
+        "description": "Every booking of the course (any status), oldest first. Allowed for the course's teacher and for admins; another teacher gets `403 forbidden` and no data. Each viewer sees what the database policies allow them: the teacher gets the booking rows and student names only (`profiles.full_name` is `\"\"`, `payments` and `payment_proofs` are empty); an admin also gets the parent's name and the payments; only the school admin (`admin01@seatsure.test`) also gets the transfer proofs, each with a `signed_url` to the private image valid for 600 seconds. For any other admin `payment_proofs` is empty.\n\nRequires a bearer token with role: teacher, admin.\n\nErrors (the `message` of the failure envelope):\n\n- `401` `not_authenticated`: Missing, invalid or expired bearer token.\n- `403` `forbidden`: Not an admin, and not the teacher of this course.\n- `404` `course_not_found`",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/RosterRow"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`not_authenticated`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`forbidden`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`course_not_found`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/bookings/{id}/proof": {
+      "put": {
+        "tags": [
+          "Payments"
+        ],
+        "operationId": "submitProof",
+        "summary": "Upload a bank-transfer proof",
+        "description": "The parent sends the transfer slip as the raw request body, with `Content-Type` set to exactly one of `image/jpeg`, `image/png` or `image/webp`. Not multipart, not JSON. The media type below reads `image/*` only because the spec lists one; other image types such as `image/gif` are rejected.\n\n- Only the owner of the booking may upload, and only while the booking is `held`. The booking hold lasts 7 days from booking.\n- The image is stored privately at `<user id>/<booking id>-<uuid>.<jpg|png|webp>`. Uploading does not pay: the booking stays `held` until `confirmPayment`.\n- Uploading again replaces the earlier proof: the same proof record points at the new image and the old image is deleted, so a booking has at most one stored proof.\n- If recording the proof fails after the image was stored, the image is deleted again.\n- Any other content type is `proof_type_invalid` (HTTP 400). A body over 5 MiB (5,242,880 bytes) is `proof_size_exceeded` (HTTP 413). An empty body is `payment_proof_required`. Nothing is stored in these cases.\n\nRequires a bearer token (any role).\n\nErrors (the `message` of the failure envelope):\n\n- `400` `proof_type_invalid`: The body is not `image/jpeg`, `image/png` or `image/webp`.\n- `400` `payment_proof_required`: The body is empty.\n- `400` `booking_not_payable`: The booking is not `held` (cancelled or expired; a paid booking takes no new proof).\n- `400` `Validation failed`: The body or a parameter failed validation; `errors` lists each field.\n- `401` `not_authenticated`: Missing, invalid or expired access token.\n- `404` `booking_not_found`: No booking with this id belongs to the caller (someone else's booking and a malformed id count as unknown).\n- `413` `proof_size_exceeded`: The body is larger than 5 MiB.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "image/*": {
+              "schema": {
+                "type": "string",
+                "format": "binary"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "data": {
+                      "type": "null"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`proof_type_invalid`, `payment_proof_required`, `booking_not_payable`, `Validation failed`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`not_authenticated`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`booking_not_found`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "`proof_size_exceeded`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/bookings/{id}/confirm-payment": {
+      "post": {
+        "tags": [
+          "Payments"
+        ],
+        "operationId": "confirmPayment",
+        "summary": "Confirm the bank transfer",
+        "description": "The parent presses \"confirm payment\" after uploading a proof. No request body.\n\n- Only the owner of the booking may confirm. The booking must be `held` and have a stored proof image.\n- On success the booking becomes `paid` and exactly one payment is recorded for the course price, with a receipt number `RC-YYYYMMDD-nnnnnn`.\n- Idempotent: confirming a booking that is already paid succeeds and charges nothing more, also when several confirms arrive at once.\n- Confirm and course cancellation are serialized on the course: if the course is cancelled first the confirm is refused (`booking_not_payable`, or `course_cancelled`); if the confirm wins, the cancel reports the new payment for refund.\n- Card payment is retired; bank transfer with a proof is the only way to pay.\n\nRequires a bearer token (any role).\n\nErrors (the `message` of the failure envelope):\n\n- `400` `booking_not_payable`: The booking is cancelled or expired.\n- `400` `payment_proof_required`: No proof image has been uploaded for the booking.\n- `400` `course_cancelled`: The course of the booking is cancelled.\n- `401` `not_authenticated`: Missing, invalid or expired access token.\n- `404` `booking_not_found`: No booking with this id belongs to the caller (someone else's booking and a malformed id count as unknown).",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "data": {
+                      "type": "null"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`booking_not_payable`, `payment_proof_required`, `course_cancelled`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`not_authenticated`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`booking_not_found`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/admin/payments": {
+      "get": {
+        "tags": [
+          "Payments"
+        ],
+        "operationId": "paymentOverview",
+        "summary": "Payment overview for the admin",
+        "description": "Admin only. Returns every approved course, cancelled ones included, with its seat count (`courses`, oldest first) and every refund report (`refunds`, newest first).\n\nA refund report is written when a course with paid bookings is cancelled; it names the account to refund and the receipt.\n\nRequires a bearer token with role: admin.\n\nErrors (the `message` of the failure envelope):\n\n- `401` `not_authenticated`: Missing, invalid or expired access token.\n- `403` `forbidden`: Only the admin may read payments.",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/PaymentSystem"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`not_authenticated`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`forbidden`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/admin/refunds": {
+      "get": {
+        "tags": [
+          "Payments"
+        ],
+        "operationId": "listRefunds",
+        "summary": "Refund reports",
+        "description": "Admin only. Every refund report, newest first. Each one is a paid booking of a cancelled course that must be refunded by bank transfer.\n\nRequires a bearer token with role: admin.\n\nErrors (the `message` of the failure envelope):\n\n- `401` `not_authenticated`: Missing, invalid or expired access token.\n- `403` `forbidden`: Only the admin may read payments.",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/RefundReport"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`not_authenticated`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`forbidden`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Failure"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "The `accessToken` from `POST /auth/login` or `POST /auth/refresh`."
+      }
+    },
+    "schemas": {
+      "ActiveBooking": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "course_id": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "hold_expires_at": {
+            "type": "string"
+          },
+          "paid_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "held",
+              "paid",
+              "cancelled",
+              "expired"
+            ]
+          },
+          "student_name": {
+            "type": "string"
+          },
+          "user_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "course_id",
+          "created_at",
+          "hold_expires_at",
+          "paid_at",
+          "status",
+          "student_name",
+          "user_id"
+        ],
+        "additionalProperties": false
+      },
+      "ApprovalBody": {
+        "type": "object",
+        "properties": {
+          "approved": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "approved"
+        ]
+      },
+      "Booking": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "course_id": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "hold_expires_at": {
+            "type": "string"
+          },
+          "paid_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "held",
+              "paid",
+              "cancelled",
+              "expired"
+            ]
+          },
+          "student_name": {
+            "type": "string"
+          },
+          "user_id": {
+            "type": "string"
+          },
+          "courses": {
+            "type": "object",
+            "properties": {
+              "title": {
+                "type": "string"
+              },
+              "price": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "title",
+              "price"
+            ],
+            "additionalProperties": false
+          },
+          "payments": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "booking_id": {
+                  "type": "string"
+                },
+                "amount": {
+                  "type": "number"
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "succeeded",
+                    "refund_due"
+                  ]
+                },
+                "receipt_no": {
+                  "type": "string"
+                },
+                "created_at": {
+                  "type": "string"
+                },
+                "idempotency_key": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "booking_id",
+                "amount",
+                "status",
+                "receipt_no",
+                "created_at",
+                "idempotency_key"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "payment_proofs": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "booking_id": {
+                  "type": "string"
+                },
+                "proof_path": {
+                  "type": "string"
+                },
+                "submitted_at": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "booking_id",
+                "proof_path",
+                "submitted_at"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "id",
+          "course_id",
+          "created_at",
+          "hold_expires_at",
+          "paid_at",
+          "status",
+          "student_name",
+          "user_id",
+          "courses",
+          "payments",
+          "payment_proofs"
+        ],
+        "additionalProperties": false
+      },
+      "BookSeatBody": {
+        "type": "object",
+        "properties": {
+          "courseId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "studentName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          }
+        },
+        "required": [
+          "courseId",
+          "studentName"
+        ]
+      },
+      "CancelCourseBody": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          }
+        },
+        "required": [
+          "reason"
+        ]
+      },
+      "Course": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "teacher_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "teacher_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "capacity": {
+            "type": "number"
+          },
+          "price": {
+            "type": "number"
+          },
+          "registration_open": {
+            "type": "boolean"
+          },
+          "seats_taken": {
+            "type": "number"
+          },
+          "cancelled_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "cancellation_reason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "starts_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "ends_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "approval_status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "approved",
+              "rejected"
+            ]
+          },
+          "approval_note": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "description",
+          "teacher_id",
+          "teacher_name",
+          "capacity",
+          "price",
+          "registration_open",
+          "seats_taken",
+          "cancelled_at",
+          "cancellation_reason",
+          "starts_at",
+          "ends_at",
+          "approval_status",
+          "approval_note"
+        ],
+        "additionalProperties": false
+      },
+      "CreateCourseBody": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 2000
+          },
+          "capacity": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1000
+          },
+          "price": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1000000,
+            "multipleOf": 0.01
+          },
+          "startsAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "endsAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "title",
+          "description",
+          "capacity",
+          "price",
+          "startsAt",
+          "endsAt"
+        ]
+      },
+      "Failure": {
+        "type": "object",
+        "description": "Every error leaves the API in this envelope. `message` is the error code (or `Validation failed`).",
+        "required": [
+          "success",
+          "message"
+        ],
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "enum": [
+              false
+            ]
+          },
+          "message": {
+            "type": "string"
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FieldError"
+            }
+          }
+        }
+      },
+      "FieldError": {
+        "type": "object",
+        "required": [
+          "field",
+          "message"
+        ],
+        "properties": {
+          "field": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "LoginBody": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 254
+          },
+          "password": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          }
+        },
+        "required": [
+          "email",
+          "password"
+        ]
+      },
+      "Me": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "fullName": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "parent",
+              "teacher",
+              "admin"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "email",
+          "fullName",
+          "role"
+        ],
+        "additionalProperties": false
+      },
+      "PaymentSystem": {
+        "type": "object",
+        "properties": {
+          "courses": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Course"
+            }
+          },
+          "refunds": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RefundReport"
+            }
+          }
+        },
+        "required": [
+          "courses",
+          "refunds"
+        ],
+        "additionalProperties": false
+      },
+      "RefreshBody": {
+        "type": "object",
+        "properties": {
+          "refreshToken": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "refreshToken"
+        ]
+      },
+      "RefundReport": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "payment_id": {
+            "type": "string"
+          },
+          "booking_id": {
+            "type": "string"
+          },
+          "course_id": {
+            "type": "string"
+          },
+          "course_title": {
+            "type": "string"
+          },
+          "student_name": {
+            "type": "string"
+          },
+          "account_name": {
+            "type": "string"
+          },
+          "account_email": {
+            "type": "string"
+          },
+          "amount": {
+            "type": "number"
+          },
+          "receipt_no": {
+            "type": "string"
+          },
+          "cancellation_reason": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "payment_id",
+          "booking_id",
+          "course_id",
+          "course_title",
+          "student_name",
+          "account_name",
+          "account_email",
+          "amount",
+          "receipt_no",
+          "cancellation_reason",
+          "created_at"
+        ],
+        "additionalProperties": false
+      },
+      "RosterRow": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "student_name": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "held",
+              "paid",
+              "cancelled",
+              "expired"
+            ]
+          },
+          "hold_expires_at": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "profiles": {
+            "type": "object",
+            "properties": {
+              "full_name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "full_name"
+            ],
+            "additionalProperties": false
+          },
+          "payments": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "amount": {
+                  "type": "number"
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "succeeded",
+                    "refund_due"
+                  ]
+                },
+                "receipt_no": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "amount",
+                "status",
+                "receipt_no"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "payment_proofs": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "booking_id": {
+                  "type": "string"
+                },
+                "proof_path": {
+                  "type": "string"
+                },
+                "submitted_at": {
+                  "type": "string"
+                },
+                "signed_url": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "id",
+                "booking_id",
+                "proof_path",
+                "submitted_at",
+                "signed_url"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "id",
+          "student_name",
+          "status",
+          "hold_expires_at",
+          "created_at",
+          "profiles",
+          "payments",
+          "payment_proofs"
+        ],
+        "additionalProperties": false
+      },
+      "Session": {
+        "type": "object",
+        "properties": {
+          "accessToken": {
+            "type": "string",
+            "minLength": 1
+          },
+          "refreshToken": {
+            "type": "string",
+            "minLength": 1
+          },
+          "expiresAt": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "accessToken",
+          "refreshToken",
+          "expiresAt"
+        ],
+        "additionalProperties": false
+      },
+      "UpdateCourseBody": {
+        "type": "object",
+        "properties": {
+          "capacity": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1000
+          },
+          "registrationOpen": {
+            "type": "boolean"
+          },
+          "startsAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "endsAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      }
+    }
+  }
+}

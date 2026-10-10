@@ -42,7 +42,7 @@ export const unpaid = cva('text-muted-foreground')
 export const payment = cva('tabular-nums')
 export const paymentState = cva('', {
   variants: {
-    received: { true: '', false: 'font-medium text-amber-800' },
+    received: { true: '', false: 'font-medium text-amber-800 dark:text-amber-300' },
   },
 })
 export const proofList = cva('flex flex-col items-start gap-1')

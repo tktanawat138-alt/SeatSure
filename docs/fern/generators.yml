@@ -1,0 +1,6 @@
+# yaml-language-server: $schema=https://schema.buildwithfern.dev/generators-yml.json
+# The API definition is generated: `task docs:openapi` rewrites openapi/openapi.json from the
+# endpoint registry in apps/backend. Do not edit that file by hand.
+api:
+  specs:
+    - openapi: openapi/openapi.json

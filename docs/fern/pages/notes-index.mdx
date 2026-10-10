@@ -1,0 +1,46 @@
+---
+title: Notes
+description: What docs/notes is for and the list of existing notes.
+---
+
+`docs/notes/` holds short, dated notes: what changed, why, the decisions made and the caveats. Guides in this site say
+how things work now; a note records how and why they got that way, so the next reader does not have to rediscover it.
+
+## When to write one
+
+After any change that has no obvious home in a guide page: a decision, a workaround, a limitation, a follow-up. If a guide
+page describes the changed behaviour, update the page too.
+
+## Format
+
+File name `docs/notes/YYYY-MM-DD-<topic>.md`. Suggested sections: **What**, **Why**, **Decisions**, **Caveats**.
+Notes are append-only history: add a new note instead of rewriting an old one, unless the old one is wrong.
+
+## Existing notes
+
+| Note | About |
+|---|---|
+| `docs/notes/2026-10-10-docs-setup.md` | How the Fern docs are built, the OpenAPI generator, and caveats |
+| `docs/notes/2026-10-10-courses.md` | Courses group of the backend API |
+| `docs/notes/2026-10-10-bookings.md` | Bookings group of the backend API |
+| `docs/notes/2026-10-10-payments.md` | Payments group of the backend API |
+| `docs/notes/2026-10-10-k6-load-tests.md` | k6 load tests (`task test:load`) |
+| `docs/notes/2026-10-10-pages-migration-a.md` | CoursesPage, MyBookingsPage, ReceiptPage, PaymentsPage onto use cases |
+| `docs/notes/2026-10-10-pages-migration-b.md` | AdminPage and TeacherPage onto the course and booking use cases |
+| `docs/notes/2026-10-10-auto-refresh.md` | Auto-refresh by polling (15 s and on tab focus) instead of Realtime |
+| `docs/notes/2026-10-10-dark-theme.md` | Light, dark and system theme, motion rules |
+| `docs/notes/2026-10-10-supabase-js-removed.md` | supabase-js removed from the frontend, behaviour changes, env caveats |
+| `docs/notes/2026-10-10-e2e-and-cross-integration.md` | Cross-app integration and Playwright e2e specs: data arrangement, cleanup, caveats |
+| `docs/notes/2026-10-10-security-hardening.md` | Security review fixes (M4, M5, M7, L1, L2, L6, L8, L9) and the findings left for a decision |
+| `docs/notes/2026-10-10-quality-dashboard.md` | Admin quality dashboard: DORA metrics and defect density from sample data |
+| `docs/notes/2026-10-11-ci-cd-docs.md` | CI/CD, SonarQube and Cloudflare documented; gaps found (no CD job, no coverage upload) |
+| `docs/notes/2026-10-11-architecture-and-sequences.md` | System architecture and sequence diagrams, discrepancies found while documenting |
+| `docs/notes/2026-10-11-backend-test-catalog.md` | Backend test catalog: what goes in, what is validated, known gaps |
+| `docs/notes/2026-10-11-frontend-project-test-catalog.md` | Frontend and project-level test catalog (cross-app, e2e, k6) |
+
+Further notes appear in the same folder in date order; list them here when you add one.
+
+## Design history
+
+The design spec and the task plan of the backend API split are not copied here:
+`docs/superpowers/specs/2026-10-10-backend-api-split-design.md` and `docs/superpowers/plans/2026-10-10-backend-api-split.md`.

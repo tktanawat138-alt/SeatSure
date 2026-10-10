@@ -11,7 +11,7 @@ export const bar = cva('h-1.5', {
   variants: {
     level: {
       normal: '*:data-[slot=progress-indicator]:bg-primary',
-      nearFull: '*:data-[slot=progress-indicator]:bg-amber-500',
+      nearFull: '*:data-[slot=progress-indicator]:bg-amber-500 dark:*:data-[slot=progress-indicator]:bg-amber-400',
       full: '*:data-[slot=progress-indicator]:bg-muted-foreground',
       over: '*:data-[slot=progress-indicator]:bg-destructive',
     },

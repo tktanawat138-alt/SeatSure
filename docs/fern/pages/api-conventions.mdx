@@ -1,0 +1,100 @@
+---
+title: API conventions
+description: The response envelope, validation errors and the error codes with their HTTP status.
+---
+
+## Envelope
+
+Every response has the same shape.
+
+```json
+{ "success": true, "data": { } }
+```
+
+```json
+{ "success": false, "message": "course_full" }
+```
+
+```json
+{
+  "success": false,
+  "message": "Validation failed",
+  "errors": [{ "field": "capacity", "message": "Too small: expected number to be >=1" }]
+}
+```
+
+- Success: `data` holds the payload (`null` for operations that return nothing, such as logout).
+- Failure: `message` is a stable code, never prose for end users. The frontend maps codes to Thai text.
+- `errors` appears only on validation failures: one entry per invalid field (`field` is the dotted path).
+
+Every request and response shape is a zod schema in `apps/backend/src/adaptor/http/contract.ts`, shared with the frontend
+through the `@contract` alias.
+
+## Validation
+
+Request bodies are parsed with the endpoint's zod schema. A failure is **HTTP 400** (not 422) with `message: "Validation failed"`
+and the `errors` list. Malformed JSON is `400 Invalid JSON body`. Unknown routes are `404 Not found`.
+
+Every field has an upper bound, so oversized input is a 400 instead of a database error: `capacity` 1 to 1000, `price` 0 to
+1,000,000 with at most 2 decimals, `title` 200 characters, `description` 2000, `studentName` 200, cancellation `reason` 1000,
+`email` 254, `password` 200 (strings are counted after trimming, where the schema trims).
+
+## Response headers
+
+- No `X-Powered-By` header.
+- `X-Content-Type-Options: nosniff` on every response.
+- `Cache-Control: no-store` on `/auth/*` and `/me`, which carry tokens or the profile.
+
+## Security log
+
+The API writes one JSON line to stdout for each failed login, each 401 and 403, and each admin course action (review,
+capacity or registration change, cancel). It never writes tokens, passwords, request bodies or emails in clear. Fields and
+events: [Backend, Security logging](/backend#security-logging).
+
+## Status mapping
+
+`apps/backend/src/adaptor/http/error-handler.ts` maps a `DomainError` code to a status:
+
+| Status | Codes |
+|---|---|
+| 401 | `not_authenticated`, `Invalid login credentials` |
+| 403 | `forbidden`, `admin01_required` |
+| 404 | any code ending in `_not_found` (`course_not_found`, `booking_not_found`) |
+| 409 | `course_not_pending`: the course was already approved or rejected |
+| 429 | `rate_limited` |
+| 400 | every other domain code, validation failures, invalid JSON |
+| 413 | `proof_size_exceeded`: the proof upload route answers it itself (`payments.routes.ts`) when the body is over 5 MiB |
+| 4xx | client errors raised by Express itself (for example `413` for an oversized body on other routes) keep their status and answer in the envelope |
+| 500 | anything unexpected: `Internal server error`; the detail is logged on the server, never sent |
+
+## Error codes
+
+Codes thrown by the API layers and by the SQL functions (`apps/backend/supabase/migrations/`). Each endpoint lists the
+codes it can return in the [API reference](/api-reference).
+
+| Code | Meaning |
+|---|---|
+| `not_authenticated` | missing, invalid or expired token, or the account has no profile |
+| `Invalid login credentials` | wrong email or password |
+| `rate_limited` | sign-in or refresh throttled |
+| `forbidden` | the role may not do this, or the resource belongs to someone else |
+| `admin01_required`, `admin_required` | the action needs `admin01` or role `admin` |
+| `course_not_found`, `booking_not_found` | no such course or booking (or not yours) |
+| `course_full` | no seat left (R1) |
+| `registration_closed` | the course is closed for registration |
+| `course_not_approved` | the course has not been approved |
+| `course_not_pending` | only a `pending` course can be approved or rejected (409); withdraw an approved course by cancelling it |
+| `course_cancelled`, `course_already_cancelled` | the course is cancelled |
+| `already_booked` | this account already holds or has paid a seat in the course |
+| `student_name_required` | empty student name |
+| `booking_not_payable`, `booking_cancelled`, `already_paid` | the booking cannot take a payment in its current state |
+| `payment_proof_required` | no stored proof for the booking |
+| `payment_proof_file_missing` | the proof record points at a missing file |
+| `proof_type_invalid`, `proof_size_exceeded` | proof is not jpeg, png or webp (400), or is over 5 MiB (413) |
+| `bank_transfer_only` | the old card payment path is disabled |
+| `capacity_below_booked` | capacity would drop below the seats already taken |
+| `invalid_course_schedule` | `endsAt` is not after `startsAt` |
+| `teachers_may_only_change_schedule` | a teacher tried to change something besides the schedule |
+| `cancellation_reason_required` | cancelling needs a reason |
+| `idempotency_key_required`, `idempotency_key_reused`, `duplicate_request` | idempotency checks on payments |
+| `network_error`, `timeout` | raised by the frontend client, never sent by the API |

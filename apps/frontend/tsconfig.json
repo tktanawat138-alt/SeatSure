@@ -13,7 +13,8 @@
     "noUnusedParameters": true,
     "types": ["vite/client", "node"],
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@contract": ["../backend/src/adaptor/http/contract.ts"]
     }
   },
   "include": ["src", "tests", "vite.config.ts"]

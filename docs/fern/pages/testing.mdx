@@ -1,0 +1,98 @@
+---
+title: Testing
+description: Test levels, commands, Vitest UI and the TDD rules.
+---
+
+Unit and integration tests live inside each app; cross-app integration and e2e live at the root `tests/`.
+
+## Levels
+
+| Where | Level | Scope | Command |
+|---|---|---|---|
+| `apps/frontend/tests/unit/` | Unit | entities, use cases with fake ports, layering and styling rules. No DB, no network, no React | `task test:unit` |
+| `apps/frontend/tests/integration/` | Integration, one app | real adaptors (HTTP client, gateways) over a stubbed network (`stub-network.ts`) | `task test:integration:frontend` |
+| `apps/backend/tests/unit/` | Unit | use cases with fake ports, HTTP routes through `createApp` with fakes (supertest), guard, error handler, layering, the OpenAPI spec | `task test:unit` |
+| `apps/backend/tests/integration/` | Integration, one app | the API over HTTP against real local Supabase: RLS, RPC, concurrency, overbooking, payments | `task test:integration:backend` |
+| `tests/integration/` | Integration, cross-app | frontend gateways against the real backend: shapes and error codes the UI relies on | `task test:integration:cross` |
+| `tests/e2e/` | E2E | the browser through the running app, Playwright (`tests/playwright.config.ts`) | `task test:e2e` |
+
+`task test` runs every level. Unit tests and frontend integration tests need no `.env.local`; backend integration,
+cross-app and e2e need `task up` first.
+
+"Integration" inside an app means that app plus one real dependency. At the root it means two apps wired together. Do not
+re-test backend rules at the root; test only the contract the frontend depends on.
+
+## Cross-app integration
+
+`tests/integration/frontend-backend-contract.test.ts` imports the frontend's real use cases from `apps/frontend/src/app/deps.ts`
+(so the real HTTP gateways, client middleware and session store) and runs them against the running API. `tests/vitest.config.ts`
+sets `VITE_API_URL=http://localhost:3001` (override with `API_URL`), aliases `@` and `@contract` like the frontend does, and
+loads `integration/local-storage.ts`, an in-memory `localStorage` for the session store (Node has none).
+
+It covers: `signIn` stores the session, `loadMe` returns the `Me` shape, `listCourses` returns `CourseDto` rows that are all
+approved, a full booking on the seeded math course (`bookSeat`, `loadMyBookings` with the joined course, `loadBooking`,
+`submitPaymentProof` with a PNG `File`, `confirmPaymentProof`, then one payment with an `RC-` receipt), the codes
+`booking_not_found`, `forbidden` (parent calling `loadPaymentSystem`) and `not_authenticated` (after `signOut`) as
+`DomainError.code`, and a garbled access token recovered by one refresh in the middleware. Responses are parsed with the zod
+schemas from `contract.ts`. The booking it creates is deleted in `afterAll` with the service key.
+
+## E2E specs
+
+Playwright (`tests/playwright.config.ts`) starts the API (`npm start --prefix ../apps/backend`, waits for `/health`) and the
+frontend, or reuses them when `task up` already runs them (always outside CI). Specs run one at a time (`workers: 1`,
+`fullyParallel: false`), traces are kept on the first retry.
+
+| Spec | Covers |
+|---|---|
+| `login.spec.ts` | the login form is shown to a visitor |
+| `theme.spec.ts` | light, dark and system theme, no flash, keyboard, reduced motion |
+| `quality-dashboard.spec.ts` | admin opens `คุณภาพระบบ` from the menu and sees the sample-data notice, the four DORA metrics and the defect density table; a parent has no menu item and `/quality` does not render the page |
+| `auth.spec.ts` | parent sign-in lands on the course list, wrong password shows `อีเมลหรือรหัสผ่านไม่ถูกต้อง`, logout, a protected route while signed out shows the login page, a garbled access token is refreshed silently after a reload, garbled access and refresh tokens sign the user out |
+| `booking-payment.spec.ts` | parent2 books a fresh two-seat course from the list, attaches a PNG proof, confirms, sees `ชำระแล้ว` and the receipt with its `RC-` number; parent3 confirms after parent4 took the last seat and sees `คอร์สนี้เต็มแล้ว` |
+| `course-lifecycle.spec.ts` | teacher1 submits a course through the form, it is pending and hidden from parents, admin@ has no approval queue, admin01 approves it (`อนุมัติคอร์สแล้ว`) and parent1 then sees it; admin cancels a course with a paid booking and sees `เพิ่มรายการคืนเงิน 1 รายการ` |
+
+Shared helpers live in `tests/e2e/support/`: `env.ts` (reads `apps/backend/.env.local`, run id, a 1x1 PNG), `api.ts`
+(API sign-in, create and approve a course as teacher1 and admin01, book and pay), `service.ts` (service-role cleanup over
+PostgREST and Storage), `ui.ts` (sign in by form or demo button). Courses created by a run are titled `E2E <run id> ...`;
+each spec deletes them in `afterAll` (refund reports, proofs and their images, payments, bookings, courses) and the global
+setup removes any `E2E ` course an interrupted run left behind. Details: `docs/notes/2026-10-10-e2e-and-cross-integration.md`.
+
+## Load tests
+
+k6 scripts in `tests/load/` (`task test:load`, needs `task up` and `brew install k6`): `smoke.js`, `auth.js`, and `booking.js`,
+where ten parents book the only seat of a fresh course at once and exactly one may succeed. See
+`docs/notes/2026-10-10-k6-load-tests.md`.
+
+## Vitest UI
+
+[Vitest UI](https://vitest.dev/guide/ui) (`@vitest/ui`) gives a browser view of tests:
+
+| Command | Runs |
+|---|---|
+| `task test:ui:frontend` | frontend unit and integration |
+| `task test:ui:backend` | backend unit and integration (integration needs `task up`) |
+| `task test:ui:cross` | cross-app integration in `/tests` (needs `task up`) |
+
+Each folder has its own `package.json` and vitest config; the backend has two projects, `unit` and `integration`.
+
+## Rules
+
+- Write the failing test first (TDD), watch it fail, then write the code.
+- Mirror the layer: a use case test goes in `tests/unit/use-cases/`.
+- Name tests `<unit> <scenario> <expected>`. No `sleep`; wait on a condition.
+- E2E uses Playwright only; specs are named `tests/e2e/<flow>.spec.ts`; locate by role or label, not CSS. The first run
+  installs Chromium.
+
+## Docs tests
+
+`apps/backend/tests/unit/openapi.test.ts` keeps the API reference honest: the generated OpenAPI document must equal the
+committed `docs/fern/openapi/openapi.json` (otherwise run `task docs:openapi`), every route mounted on `createApp` has one
+registry entry and vice versa, operation ids are unique, and every `$ref` resolves.
+
+## Demo of the bug protection
+
+The backend integration tests run in two modes: normal, and `unsafe` (`npm run test:unsafe` in `apps/backend`). Unsafe mode
+switches `book_seat` to a check-then-write version without the row lock, so the overbooking tests prove they would catch the
+bug: three tests fail on purpose (20 users for one seat, 25 users for 5 seats, and the same race through the API). Only
+`book_seat` reads the mode: `pay_booking` is retired and `confirm_transfer_payment` always locks, so double charging cannot be
+demonstrated this way. The global setup restores the safe mode afterwards. See the [backend test catalog](/test-catalog-backend).

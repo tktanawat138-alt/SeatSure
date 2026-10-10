@@ -13,7 +13,7 @@ import {
 import { Field, FieldLabel } from '@/components/ui/field'
 import { Spinner } from '@/components/ui/spinner'
 import { Textarea } from '@/components/ui/textarea'
-import type { Course } from '@/lib/supabase'
+import type { Course } from '@/entities/course'
 import * as s from './cancel-course-dialog.styles'
 
 interface Props {

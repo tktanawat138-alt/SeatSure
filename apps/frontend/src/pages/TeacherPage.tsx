@@ -13,9 +13,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { useAuth } from '@/lib/auth'
 import { bookingStatus, courseSchedule, dateTime, errorText, holdsSeat } from '@/lib/format'
 import * as styles from './TeacherPage.styles'
-import { supabase, type Booking, type Course } from '@/lib/supabase'
-import { updateCourseSchedule } from '@/app/deps'
+import type { Course } from '@/entities/course'
+import type { ActiveBooking } from '@/interfaces/bookings-gateway'
+import { createCourse, listCourses, loadActiveBookings, updateCourseSchedule } from '@/app/deps'
 import { useAutoRefresh } from '@/lib/use-auto-refresh'
+
+/** A thrown DomainError carries the API error code as its message, which `errorText` maps to Thai. */
+const failureText = (cause: unknown, fallback = 'unknown_error') => errorText(cause instanceof Error ? cause : { message: fallback })
 
 /** The booking time as two unbreakable parts, so a narrow column wraps between date and time and nowhere else. */
 function BookedAt({ iso }: Readonly<{ iso: string }>) {
@@ -30,7 +34,7 @@ function BookedAt({ iso }: Readonly<{ iso: string }>) {
   )
 }
 
-function RosterTable({ students, now }: Readonly<{ students: Booking[]; now: number }>) {
+function RosterTable({ students, now }: Readonly<{ students: ActiveBooking[]; now: number }>) {
   return (
     <div className={styles.rosterWrap()}>
       <Table>
@@ -71,7 +75,7 @@ function CourseRoster({
   now,
   scheduleBusy,
   onSaveSchedule,
-}: Readonly<{ course: Course; students: Booking[]; now: number; scheduleBusy: boolean; onSaveSchedule: (startsAt: string, endsAt: string) => Promise<boolean> }>) {
+}: Readonly<{ course: Course; students: ActiveBooking[]; now: number; scheduleBusy: boolean; onSaveSchedule: (startsAt: string, endsAt: string) => Promise<boolean> }>) {
   const hasStudents = students.length > 0
   return (
     <Card className={styles.courseCard({ hasStudents })}>
@@ -110,7 +114,7 @@ function CourseRoster({
 export default function TeacherPage() {
   const { profile } = useAuth()
   const [courses, setCourses] = useState<Course[] | null>(null)
-  const [bookings, setBookings] = useState<Booking[]>([])
+  const [bookings, setBookings] = useState<ActiveBooking[]>([])
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const [savingScheduleId, setSavingScheduleId] = useState<string | null>(null)
@@ -119,42 +123,34 @@ export default function TeacherPage() {
   const refresh = useCallback(async () => {
     if (!teacherId) return
     try {
-      const [courseList, roster] = await Promise.all([
-      supabase.from('courses').select('*').eq('teacher_id', teacherId).order('created_at'),
-      supabase.from('bookings').select().in('status', ['held', 'paid']).order('created_at'),
-    ])
-      if (courseList.error) throw courseList.error
-      if (roster.error) throw roster.error
-      setCourses((courseList.data ?? []).map((course) => ({
-          ...course,
-          teacher_name: profile?.full_name ?? null,
-          seats_taken: 0,
-        })).filter((course) => !course.cancelled_at) as Course[])
-      setBookings(roster.data ?? [])
+      const [courseList, roster] = await Promise.all([listCourses({ mine: true }), loadActiveBookings()])
+      // The API lists cancelled courses too; this page hides them.
+      setCourses(courseList.filter((course) => !course.cancelled_at))
+      setBookings(roster)
       setError('')
     } catch {
       setError('โหลดรายชื่อไม่สำเร็จ ลองโหลดหน้านี้ใหม่')
     }
-  }, [teacherId, profile?.full_name])
+  }, [teacherId])
 
   useEffect(() => { void refresh() }, [refresh])
-  useAutoRefresh(refresh, 'courses', 'bookings')
+  useAutoRefresh(refresh)
 
   const addCourse = useCallback(async (draft: CourseDraft, reportError: (message: string) => void) => {
     if (!teacherId) return false
     setBusy(true)
-    const { error: insertError } = await supabase.from('courses').insert({
-      title: draft.title.trim(), description: draft.description.trim(), teacher_id: teacherId,
-      capacity: Number(draft.capacity), price: Number(draft.price), registration_open: false,
-      approval_status: 'pending', starts_at: new Date(draft.startsAt).toISOString(), ends_at: new Date(draft.endsAt).toISOString(),
-    })
+    try {
+      await createCourse(draft)
+    } catch (cause) {
+      setBusy(false)
+      reportError(failureText(cause))
+      return false
+    }
     setBusy(false)
-    if (insertError) { reportError(errorText(insertError)); return false }
     toast.success('ส่งคอร์สให้แอดมินโรงเรียนอนุมัติแล้ว')
-    const { data } = await supabase.from('courses').select('*').eq('teacher_id', teacherId).order('created_at')
-    if (data) setCourses(data.map((course) => ({ ...course, teacher_name: profile?.full_name ?? null, seats_taken: 0 })) as Course[])
+    await refresh()
     return true
-  }, [teacherId, profile?.full_name])
+  }, [teacherId, refresh])
 
   async function saveSchedule(course: Course, startsAt: string, endsAt: string) {
     setSavingScheduleId(course.id)
@@ -164,7 +160,7 @@ export default function TeacherPage() {
       toast.success('เปลี่ยนวันเวลาเรียนแล้ว')
       return true
     } catch (cause) {
-      toast.error(errorText(cause instanceof Error ? cause : { message: 'course_schedule_update_failed' }))
+      toast.error(failureText(cause, 'course_schedule_update_failed'))
       return false
     } finally {
       setSavingScheduleId(null)

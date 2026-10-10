@@ -1,0 +1,64 @@
+---
+title: Architecture
+description: The three parts, the request path and the Clean Architecture import rules of both apps.
+---
+
+```
+Browser -> Frontend (React) -> client middleware -> Backend API (Express) -> Supabase (Postgres, Auth, Storage)
+```
+
+- The **frontend** never calls Supabase: it has no Supabase client or key, and polls the API for fresh data (no Realtime). Every call goes through `apps/frontend/src/adaptor/http/client.ts`, which
+  adds the bearer token, refreshes it once on a 401 and unwraps the response envelope.
+- The **backend** verifies the Supabase JWT on every protected route, applies the business rules in use cases and talks to
+  Supabase with the service key. The atomic SQL functions (`book_seat`, `confirm_transfer_payment`, `cancel_course`) stay
+  in `apps/backend/supabase/migrations/`; RLS stays on as a second line of defence.
+- **Supabase** is Postgres, Auth and Storage (payment proof images).
+
+The decision record is `docs/superpowers/specs/2026-10-10-backend-api-split-design.md` and the task plan is
+`docs/superpowers/plans/2026-10-10-backend-api-split.md`.
+
+## Request path
+
+1. A page calls a use case (via `apps/frontend/src/app/deps.ts`).
+2. The use case calls a gateway port; the `adaptor/http` gateway calls `client.request(method, path, body)`.
+3. The client sends `Authorization: Bearer <accessToken>`. On a 401 it refreshes once and retries (see [Authentication](/authentication)).
+4. The Express app parses JSON, `requireAuth` checks the token and role, zod validates the body, a use case runs.
+5. The use case uses ports; `adaptor/supabase` implements them with `supabase-js` and RPC calls.
+6. Success leaves as `{ success: true, data }`, any error as `{ success: false, message, errors? }` (see [API conventions](/api-conventions)).
+
+## Clean Architecture
+
+Dependencies point inwards. A layer may import only the layers listed in "May import". Both apps follow the same shape
+(GS Battery SOP, AI Engineering section 7.2, adapted to TypeScript).
+
+### Backend (`apps/backend/src`)
+
+| Layer | Path | Holds | May import |
+|---|---|---|---|
+| Entities | `entities/` | domain types and pure rules, `DomainError`, `Actor` | nothing |
+| Interfaces | `interfaces/` | ports the use cases need (`AuthProvider`, repositories) | entities |
+| Use cases | `use-cases/` | every business rule; ports and the acting `Actor` passed in | entities, interfaces |
+| Adaptor | `adaptor/http/`, `adaptor/supabase/` | Express routers, guard, error handler, endpoint registry; Supabase implementations of the ports | entities, interfaces, use-cases |
+| Composition root | `app.ts`, `main.ts` | the only place that wires adaptors into use cases | everything |
+
+`entities`, `interfaces` and `use-cases` import neither `express`, `cors` nor `@supabase/*`.
+`apps/backend/tests/unit/layering.test.ts` enforces it.
+
+### Frontend (`apps/frontend/src`)
+
+| Layer | Path | Holds | May import |
+|---|---|---|---|
+| Entities | `entities/` | domain types, pure rules, `DomainError` | nothing |
+| Interfaces | `interfaces/` | ports (`AuthGateway`, ...) | entities |
+| Use cases | `use-cases/` | app logic, one function per action, ports passed in | entities, interfaces |
+| Adaptor | `adaptor/http/` (API client, session store, gateways), `adaptor/format/` | implements the ports | entities, interfaces |
+| UI | `ui/` and, for older code, `pages/` and `components/` | React; calls use cases | use-cases, entities, `components/ui` |
+| Composition root | `main.tsx`, `app/deps.ts` | wires adaptors into use cases | everything |
+
+No `react` in `entities`, `interfaces`, `use-cases`, and no `@supabase/*` anywhere in `apps/frontend/src` (the frontend has no
+Supabase client; only the backend does). `apps/frontend/tests/unit/layering.test.ts` enforces both. Code in `src/lib`, `src/pages` and `src/components` predates the layout: move it into a layer when you touch it.
+
+### Shared contract
+
+`apps/backend/src/adaptor/http/contract.ts` holds the zod schemas for every request and response. The frontend imports it
+through the `@contract` alias, so it may import only `zod`.

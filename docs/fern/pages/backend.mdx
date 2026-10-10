@@ -1,0 +1,79 @@
+---
+title: Backend
+description: apps/backend layers, ports, wiring, and how to add an endpoint.
+---
+
+Node + Express 5 + TypeScript. Supabase supplies Postgres, Auth and Storage. See [Architecture](/architecture) for the layer table.
+
+## Layout
+
+```
+apps/backend/
+  src/
+    entities/          domain types, DomainError, Actor            (no imports)
+    interfaces/        ports: AuthProvider, repositories, storage  (entities only)
+    use-cases/         business rules, one file per area           (entities, interfaces)
+    adaptor/http/      routers, guard, error handler, contract.ts, endpoints/ (the registry)
+    adaptor/supabase/  implements the ports with supabase-js; <area>-wiring.ts
+    app.ts             createApp(deps): the HTTP composition root
+    main.ts            process entry: reads env, builds the Supabase adaptors, calls createApp
+  scripts/             env, seed, gen-openapi.ts
+  supabase/            migrations and config
+  tests/unit, tests/integration
+```
+
+## Ports and wiring
+
+- A use case receives its ports and the acting `Actor` (`{ id, email, role, token }`) and throws `DomainError(code)`.
+- `main.ts` builds the Supabase implementation of each port (`createSupabaseAuthProvider`, `wireCourses`, `wireBookings`,
+  `wirePayments`) and passes them to `createApp(deps)`. `createApp` is the only place that connects adaptors to use cases.
+- Unit tests call `createApp` with fakes (for example `tests/unit/api/fake-auth-provider.ts`), so no service is needed.
+- `requireAuth(roles?)` (`adaptor/http/guard.ts`) protects a route: `401 not_authenticated` without a valid bearer,
+  `403 forbidden` for other roles. Inside the handler, `actorOf(req)` returns the actor.
+- Express errors flow to `errorHandler`, which maps `DomainError` codes and zod errors to the envelope. See [API conventions](/api-conventions).
+
+## Security logging
+
+`adaptor/http/security-log.ts` writes one JSON line per security event to stdout (`console.info`), for a log collector to
+pick up. It lives in the HTTP layer only; use cases do not log.
+
+| `event` | When | Fields |
+|---|---|---|
+| `login_failed` | `POST /auth/login` answers 401 | `email_hash` (first 12 hex chars of SHA-256 of the trimmed, lowercased email), `ip` |
+| `unauthorized` | any other 401 | `method`, `path` (route pattern such as `/courses/:id`, no query string), `status` |
+| `forbidden` | any 403 | same as above plus `actor` (user id) when the token was valid |
+| `admin_action` | an admin reviews (`course_review`, with `decision`), updates (`course_update`) or cancels (`course_cancel`) a course | `action`, `actor`, `course`, `outcome` (`ok` or the error code), `status` |
+
+Every line has `ts` (ISO time). A refused admin action is logged once, as `admin_action` with its 4xx status. Tokens,
+passwords, request bodies (including the cancellation reason), the `Authorization` header and emails in clear are never
+written. `accessLog` is mounted first in `createApp`; `auditCourseAction(action)` sits after `requireAuth` on the admin course
+routes; the error handler records the failure code in `res.locals.errorCode` for the outcome.
+
+## Environment
+
+`task up` writes `apps/backend/.env.local`: `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` (server only, never
+logged or sent to the browser), `FRONTEND_ORIGIN` and `API_PORT` (default 3001). `main.ts` exits with a message naming any
+missing key.
+
+## Add an endpoint
+
+The endpoint registry (`src/adaptor/http/endpoints/`) is the single source of truth for the HTTP surface; the API reference
+in these docs is generated from it.
+
+1. **Test first.** Add a failing unit test with fake ports in `tests/unit/use-cases/` and, for the route, one in `tests/unit/api/`.
+2. **Use case.** Implement the rule in `src/use-cases/<area>.ts`. Add or extend a port in `src/interfaces/` if it needs data.
+3. **Schema.** Add or reuse the zod request and response schemas in `src/adaptor/http/contract.ts`.
+4. **Route.** Mount it in `src/adaptor/http/<area>.routes.ts`: `router.post('/x', requireAuth(['teacher']), handler)`, validate the body
+   with the schema, return `{ success: true, data }`.
+5. **Registry entry.** Add an `Endpoint` to `src/adaptor/http/endpoints/<area>.ts`: `method`, `path` (Express style, `:id`),
+   unique `operationId`, `summary`, `description` (business rules in plain words), `tag`, `auth`, `request`, `response`
+   (the schema of `data`, or `null`) and every error `{ status, code }`.
+6. **Regenerate the spec.** `task docs:openapi` rewrites `docs/fern/openapi/openapi.json`. Commit it with the change.
+7. **Update the guides** that describe the behaviour, or add a dated note in `docs/notes/` (see [Notes](/notes)).
+
+`tests/unit/openapi.test.ts` guards this: the generated spec must equal the committed file, every route mounted on `createApp`
+must have exactly one registry entry (and the other way round), operation ids must be unique, and every entry needs a
+summary and at least one error (except `/health`). The generator is `apps/backend/scripts/gen-openapi.ts`.
+
+Schemas exported from `contract.ts` become named components in the spec (`CourseDto` is `Course`), so response types are
+referenced, not repeated.

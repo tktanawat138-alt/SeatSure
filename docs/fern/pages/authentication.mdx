@@ -1,0 +1,63 @@
+---
+title: Authentication
+description: Login, refresh and logout, the bearer token, how the browser keeps the session, roles and the admin01 rule.
+---
+
+Identity is Supabase Auth, but the browser never talks to it. The backend signs users in, refreshes and signs them out,
+and verifies the token on every protected route.
+
+## Endpoints
+
+| Call | Auth | Result |
+|---|---|---|
+| `POST /auth/login` `{ email, password }` | public | a session `{ accessToken, refreshToken, expiresAt }` (`expiresAt` is epoch seconds) |
+| `POST /auth/refresh` `{ refreshToken }` | public | a new session |
+| `POST /auth/logout` | bearer | `data: null`; ends this session on the server, so its tokens stop working. Other devices stay signed in. |
+| `GET /me` | bearer | `{ id, email, fullName, role }` |
+
+Errors: wrong credentials are `401 Invalid login credentials`; throttled sign-in or refresh is `429 rate_limited`; a refresh
+token that is invalid or already used is `401 not_authenticated`. Details are in the [API reference](/api-reference).
+
+## Bearer token
+
+Protected routes need `Authorization: Bearer <accessToken>`. The guard (`adaptor/http/guard.ts`) answers `401 not_authenticated`
+when the header is missing or malformed, or the token is expired, revoked, or belongs to an account with no profile row,
+and `403 forbidden` when the role is not allowed for the route. A route is declared `public`, `any` (any signed-in
+user) or restricted to a role list in the [endpoint registry](/backend).
+
+## What the browser does
+
+The client middleware (`apps/frontend/src/adaptor/http/client.ts`):
+
+1. Sends the stored access token with every call.
+2. On a **401**, refreshes once and retries the request once. If several requests hit 401 at the same time they share **one**
+   refresh (single flight). If another tab already rotated the token, the request just retries with the newer one.
+3. If the refresh answers any 4xx other than 429, or the retried request is still 401, the session is cleared and the call fails
+   with `not_authenticated`. A 429, a 5xx or a network error keeps the session so the next attempt can succeed.
+4. Turns every failure into a `DomainError(code)`: the envelope `message`, or `network_error` or `timeout` (15 s default).
+5. Never logs tokens.
+
+### Session storage
+
+`session-store.ts` keeps `{ accessToken, refreshToken, expiresAt }` in `localStorage` under `seatsure.session`.
+
+- A reload stays signed in.
+- Every tab shares one session: `get()` reads storage each time and a `storage` event notifies the other tabs, so a token
+  rotated, set or cleared in one tab is seen in all.
+- If storage is unavailable (private mode, blocked site data) the session lives in memory for that tab only.
+- Signing in clears any old session first so an old token is never sent with a login. Signing out calls `POST /auth/logout`,
+  ignores a failure there (offline, already expired) and always clears the local tokens.
+
+Tokens in `localStorage` have the same exposure as the former `supabase-js` session. httpOnly cookies are out of scope.
+
+## Roles
+
+`parent`, `teacher` and `admin` come from the `profiles` table and are returned by `GET /me`. Each endpoint's access is
+shown in the [API reference](/api-reference).
+
+### The admin01 rule
+
+Two database predicates exist: `is_admin` (role `admin`) and `is_school_admin`, true only for the account
+`admin01@seatsure.test` (case-insensitive). Cancelling a course and reading the refund report need role `admin`. Approving
+or rejecting a submitted course and viewing the payment proof images need `admin01`; another admin gets `admin01_required`
+and no proof URLs. The UI mirrors this: the approval queue and proof links show only for `admin01`.
