@@ -15,7 +15,7 @@ import { Field, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { Spinner } from '@/components/ui/spinner'
 import { baht } from '@/lib/format'
-import type { Course } from '@/lib/supabase'
+import type { Course } from '@/entities/course'
 import { alert, content, form, header, hint, hintIcon, input, price, title } from './book-seat-dialog.styles'
 
 /** The form a parent confirms to hold a seat in one course. The page owns the state and the request. */

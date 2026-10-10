@@ -38,7 +38,7 @@ export default function MyBookingsPage() {
   useEffect(() => {
     void load()
   }, [load])
-  useAutoRefresh(load, 'bookings', 'payment_proofs', 'payments')
+  useAutoRefresh(load)
 
   async function uploadProof(booking: BookingRow, event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0]

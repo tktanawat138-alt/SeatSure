@@ -8,14 +8,16 @@ import { EmptyState, PageError, PageLoading } from '@/components/page-state'
 import { useAuth } from '@/lib/auth'
 import { errorText, holdsSeat } from '@/lib/format'
 import * as styles from './CoursesPage.styles'
-import { fetchCourses, supabase, type Booking, type Course } from '@/lib/supabase'
+import { bookSeat, listCourses, loadActiveBookings } from '@/app/deps'
+import type { Course } from '@/entities/course'
+import type { ActiveBooking } from '@/interfaces/bookings-gateway'
 import { useAutoRefresh } from '@/lib/use-auto-refresh'
 
 export default function CoursesPage() {
   const { profile } = useAuth()
   const navigate = useNavigate()
   const [courses, setCourses] = useState<Course[] | null>(null)
-  const [myBookings, setMyBookings] = useState<Booking[]>([])
+  const [myBookings, setMyBookings] = useState<ActiveBooking[]>([])
   // The course in the booking dialog. It stays set after the dialog closes,
   // so the dialog still has its content while it animates out.
   const [openCourse, setOpenCourse] = useState<Course | null>(null)
@@ -27,11 +29,11 @@ export default function CoursesPage() {
   const load = useCallback(async () => {
     try {
       const [courseList, bookings] = await Promise.all([
-        fetchCourses(),
-        supabase.from('bookings').select().in('status', ['held', 'paid']),
+        listCourses(),
+        loadActiveBookings(),
       ])
       setCourses(courseList)
-      setMyBookings(bookings.data ?? [])
+      setMyBookings(bookings)
     } catch {
       setError('โหลดรายการคอร์สไม่สำเร็จ ลองโหลดหน้านี้ใหม่')
     }
@@ -40,7 +42,7 @@ export default function CoursesPage() {
   useEffect(() => {
     void load()
   }, [load])
-  useAutoRefresh(load, 'courses', 'bookings')
+  useAutoRefresh(load)
 
   function openDialog(course: Course) {
     setOpenCourse(course)
@@ -48,20 +50,19 @@ export default function CoursesPage() {
     setError('')
   }
 
-  async function bookSeat(event: SubmitEvent, course: Course) {
+  async function submitBooking(event: SubmitEvent, course: Course) {
     event.preventDefault()
     setBusy(true)
     setError('')
-    const { error } = await supabase.rpc('book_seat', {
-      p_course_id: course.id,
-      p_student_name: studentName,
-    })
-    setBusy(false)
-    if (error) {
-      setError(errorText(error))
+    try {
+      await bookSeat({ courseId: course.id, studentName })
+    } catch (cause) {
+      setBusy(false)
+      setError(errorText(cause instanceof Error ? cause : { message: 'book_seat_failed' }))
       void load()
       return
     }
+    setBusy(false)
     navigate('/bookings')
   }
 
@@ -104,7 +105,7 @@ export default function CoursesPage() {
         onStudentNameChange={setStudentName}
         busy={busy}
         error={error}
-        onSubmit={bookSeat}
+        onSubmit={submitBooking}
       />
     </>
   )

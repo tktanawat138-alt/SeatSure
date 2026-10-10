@@ -6,7 +6,8 @@ import { StatusBadge } from '@/components/status-badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardAction, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { baht, parentCourseSchedule } from '@/lib/format'
-import type { Booking, Course } from '@/lib/supabase'
+import type { Course } from '@/entities/course'
+import type { ActiveBooking } from '@/interfaces/bookings-gateway'
 import {
   actions,
   bookButton,
@@ -24,7 +25,7 @@ import {
 interface CourseCardProps {
   course: Course
   /** The parent's own booking that holds a seat in this course (paid, or a hold still running). */
-  mine: Booking | undefined
+  mine: ActiveBooking | undefined
   onBook: () => void
 }
 
