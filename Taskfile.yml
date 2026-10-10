@@ -85,6 +85,13 @@ tasks:
       - k6 run load/auth.js
       - k6 run load/booking.js
 
+  test:load:dashboard:
+    desc: k6 auth load for 5 minutes with the live dashboard at http://127.0.0.1:5665 (needs task up)
+    dir: tests
+    deps: [backend:up]
+    cmds:
+      - K6_WEB_DASHBOARD=true K6_WEB_DASHBOARD_OPEN=true k6 run --stage 30s:10,4m:25,30s:0 load/auth.js
+
   test:ui:frontend:
     desc: Vitest UI for the frontend unit + integration tests (https://vitest.dev/guide/ui)
     dir: apps/frontend
