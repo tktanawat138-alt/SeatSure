@@ -49,6 +49,7 @@ const errorMessages: Record<string, string> = {
   'Invalid login credentials': 'อีเมลหรือรหัสผ่านไม่ถูกต้อง',
   network_error: 'เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ ลองใหม่อีกครั้ง',
   timeout: 'เซิร์ฟเวอร์ตอบช้าเกินไป ลองใหม่อีกครั้ง',
+  rate_limited: 'ลองเข้าสู่ระบบบ่อยเกินไป รอสักครู่แล้วลองใหม่',
 }
 
 export const errorText = (error: { message: string }) =>

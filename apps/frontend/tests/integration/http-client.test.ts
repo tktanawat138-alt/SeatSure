@@ -23,7 +23,8 @@ function memoryStorage() {
 }
 
 function setup(initial: Session | null = null, timeoutMs?: number) {
-  const store = createSessionStore(() => memoryStorage())
+  const storage = memoryStorage()
+  const store = createSessionStore(() => storage)
   if (initial) store.set(initial)
   const client = createApiClient({ baseUrl: BASE, store, timeoutMs })
   return { store, client }
@@ -103,6 +104,71 @@ describe('apiClient', () => {
     expect(calls.map((c) => c.url.pathname)).toEqual(['/courses', '/auth/refresh', '/courses'])
   })
 
+  it.each([400, 403])('a %i from refresh also clears the store and rejects with not_authenticated', async (status) => {
+    stubNetwork(coursesFor(2), api('POST', '/auth/refresh', fail(status, 'invalid_grant')))
+    const { client, store } = setup(session(1))
+    expect((await rejection(client.request('GET', '/courses')))?.code).toBe('not_authenticated')
+    expect(store.get()).toBeNull()
+  })
+
+  it.each([
+    [500, 'Internal server error'],
+    [429, 'rate_limited'],
+  ])('a %i from refresh keeps the session and rejects with the server code', async (status, message) => {
+    stubNetwork(coursesFor(2), api('POST', '/auth/refresh', fail(status, message)))
+    const { client, store } = setup(session(1))
+    expect((await rejection(client.request('GET', '/courses')))?.code).toBe(message)
+    expect(store.get()).toEqual(session(1))
+  })
+
+  it('a network failure during refresh keeps the session', async () => {
+    const { client, store } = setup(session(1))
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: string) =>
+        input.endsWith('/auth/refresh')
+          ? Promise.reject(new TypeError('fetch failed'))
+          : new Response(JSON.stringify({ success: false, message: 'not_authenticated' }), { status: 401 }),
+      ),
+    )
+    expect((await rejection(client.request('GET', '/courses')))?.code).toBe('network_error')
+    expect(store.get()).toEqual(session(1))
+  })
+
+  it('after another tab rotated the token, a 401 retry uses the stored newer token without a refresh', async () => {
+    const storage = memoryStorage()
+    const otherTab = createSessionStore(() => storage)
+    const store = createSessionStore(() => storage)
+    store.set(session(1))
+    const client = createApiClient({ baseUrl: BASE, store })
+    const calls = stubNetwork(
+      api('GET', '/courses', (init) => {
+        if (authorization(init) === 'Bearer access-2') return ok(['c1'])
+        otherTab.set(session(2)) // tab A rotates while this request is in flight
+        return fail(401, 'not_authenticated')
+      }),
+      api('POST', '/auth/refresh', fail(401, 'not_authenticated')),
+    )
+
+    expect(await client.request('GET', '/courses')).toEqual(['c1'])
+    expect(calls.map((c) => c.url.pathname)).toEqual(['/courses', '/courses'])
+  })
+
+  it('after another tab rotated the token, a refresh uses the newer refresh token', async () => {
+    const storage = memoryStorage()
+    const otherTab = createSessionStore(() => storage)
+    const store = createSessionStore(() => storage)
+    store.set(session(1))
+    otherTab.set(session(2))
+    const client = createApiClient({ baseUrl: BASE, store })
+    const calls = stubNetwork(coursesFor(3), api('POST', '/auth/refresh', ok(session(3))))
+
+    expect(await client.request('GET', '/courses')).toEqual(['c1'])
+    expect(authorization(calls[0]!.init)).toBe('Bearer access-2')
+    expect(calls[1]!.init?.body).toBe(JSON.stringify({ refreshToken: 'refresh-2' }))
+    expect(otherTab.get()).toEqual(session(3))
+  })
+
   it('a 401 without a session does not refresh and maps the message', async () => {
     const calls = stubNetwork(api('POST', '/auth/login', fail(401, 'Invalid login credentials')))
     const { client } = setup()
@@ -157,7 +223,8 @@ describe('sessionStore', () => {
   })
 
   it('clear removes the session and notifies subscribers until they unsubscribe', () => {
-    const store = createSessionStore(() => memoryStorage())
+    const storage = memoryStorage()
+    const store = createSessionStore(() => storage)
     const seen: (Session | null)[] = []
     const unsubscribe = store.subscribe((s) => seen.push(s))
     store.set(session(1))
@@ -188,11 +255,54 @@ describe('sessionStore', () => {
     expect(store.get()).toEqual(session(1))
   })
 
+  it('two stores sharing storage: a rotation by one is read by the other', () => {
+    const storage = memoryStorage()
+    const tabA = createSessionStore(() => storage)
+    const tabB = createSessionStore(() => storage)
+    tabA.set(session(1))
+    expect(tabB.get()).toEqual(session(1))
+    tabA.set(session(2))
+    expect(tabB.get()).toEqual(session(2))
+    tabA.clear()
+    expect(tabB.get()).toBeNull()
+  })
+
+  it('keeps the session in memory when storage reads work but writes throw', () => {
+    const store = createSessionStore(() => ({
+      getItem: () => null,
+      setItem: () => {
+        throw new Error('QuotaExceededError')
+      },
+      removeItem: () => undefined,
+    }))
+    store.set(session(1))
+    expect(store.get()).toEqual(session(1))
+  })
+
+  it('notifies subscribers when another tab changes the session key', () => {
+    const win = new EventTarget()
+    vi.stubGlobal('window', win)
+    const storage = memoryStorage()
+    const store = createSessionStore(() => storage)
+    const seen: (Session | null)[] = []
+    store.subscribe((s) => seen.push(s))
+
+    storage.setItem('seatsure.session', JSON.stringify(session(2))) // written by another tab
+    win.dispatchEvent(Object.assign(new Event('storage'), { key: 'seatsure.session' }))
+    win.dispatchEvent(Object.assign(new Event('storage'), { key: 'unrelated' }))
+    storage.removeItem('seatsure.session')
+    win.dispatchEvent(Object.assign(new Event('storage'), { key: null })) // localStorage.clear()
+
+    expect(seen).toEqual([session(2), null])
+  })
+
   it('ignores corrupt stored data', () => {
     const storage = memoryStorage()
     storage.setItem('seatsure.session', '{not json')
     expect(createSessionStore(() => storage).get()).toBeNull()
     storage.setItem('seatsure.session', JSON.stringify({ accessToken: 1 }))
+    expect(createSessionStore(() => storage).get()).toBeNull()
+    storage.setItem('seatsure.session', JSON.stringify({ ...session(1), refreshToken: '' }))
     expect(createSessionStore(() => storage).get()).toBeNull()
   })
 })

@@ -67,7 +67,9 @@ export function createApiClient({
   function refresh(refreshToken: string): Promise<Session> {
     refreshing ??= send('POST', '/auth/refresh', { refreshToken }, null, {})
       .then((reply) => {
-        if (reply.status === 401) signedOut()
+        // Any 4xx means the refresh token is gone. 429, 5xx and network errors are passing
+        // trouble: keep the session and let the caller retry later.
+        if (reply.status >= 400 && reply.status < 500 && reply.status !== 429) signedOut()
         const session = unwrap<Session>(reply)
         store.set(session)
         return session
