@@ -24,6 +24,8 @@ Workers โดยข้อมูลการชำระเงินเป็น
 - Integration (ข้าม app): tests/integration/ ตรวจ adaptor ของ frontend กับ backend จริง
 - E2E: tests/e2e/login.spec.ts ตรวจฟอร์ม login ด้วย Playwright
 - Taskfile มี task test:unit, task test:integration, task test:e2e และ task test
+- CI: .github/workflows/ci.yml รัน unit, integration, E2E และ SonarQube scan
+  เมื่อ push เข้า main หรือเปิด PR (SonarQube ต้องตั้ง secret SONAR_TOKEN ก่อน)
 
 สิ่งที่ยังเป็นแผนและต้องพัฒนาก่อนจึงจะรันได้:
 - E2E แบบ Page Object Model สำหรับ workflow จริงของ parent/teacher/admin
@@ -191,7 +193,8 @@ D. Soak (ภายหลัง): workload ต่ำต่อเนื่อง 3
 5. รัน k6 baseline บน staging ก่อน release ใหญ่ และเก็บผลเทียบรอบก่อน
 
 9. Quality Metrics Dashboard
-ขณะนี้ repository ยังไม่มี CI workflow หรือ dashboard สำหรับ quality metrics
+ขณะนี้ repository มี CI workflow แล้ว (.github/workflows/ci.yml) แต่ยังไม่มี
+dashboard สำหรับ quality metrics
 ให้ทำ dashboard สำหรับทีมพัฒนา/ผู้ประเมิน ไม่ใช่หน้าหนึ่งในแอป SeatSure
 dashboard ต้องแสดงแนวโน้มตาม commit/build และ link ไปยังรายละเอียด test report
 
@@ -250,7 +253,8 @@ dashboard ต้องแสดงแนวโน้มตาม commit/build �
 - flaky test ต้องขึ้นเตือน ไม่ซ่อนด้วย retry; บันทึกจำนวน retry ไว้เสมอ
 - การเพิ่ม coverage ต้องแสดงตาม workflow/requirement ไม่อ้างเปอร์เซ็นต์รวมอย่างเดียว
 
-สถานะปัจจุบัน: ยังไม่มี GitHub Actions, metrics collector หรือ dashboard ใน repo
-หัวข้อนี้เป็น implementation plan; ต้องทำ CI และ report export ก่อนจึงจะมีข้อมูลจริง
+สถานะปัจจุบัน: มี GitHub Actions รัน test และ SonarQube scan แล้ว (ขั้นตอนที่ 1)
+ยังไม่มี metrics collector หรือ dashboard ใน repo ส่วนที่เหลือของหัวข้อนี้เป็น
+implementation plan; ต้องทำ report export ก่อนจึงจะมีข้อมูลจริง
 
 จบเอกสาร

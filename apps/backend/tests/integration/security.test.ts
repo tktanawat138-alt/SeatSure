@@ -6,7 +6,7 @@ import {
   createUser,
   getBooking,
   mustBook,
-  pay,
+  mustPay,
   visitor,
   type TestUser,
 } from './helpers'
@@ -29,7 +29,7 @@ beforeAll(async () => {
 
   const aliceBooking = await mustBook(alice, course.id)
   aliceBookingId = aliceBooking.id
-  await pay(alice, aliceBooking.id)
+  await mustPay(alice, aliceBooking.id)
   await mustBook(bob, course.id)
 
   const { error } = await admin.from('grades').insert([

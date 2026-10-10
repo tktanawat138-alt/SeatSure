@@ -98,6 +98,13 @@ export async function attachProof(user: TestUser, bookingId: string) {
 export const confirmPayment = (user: TestUser, bookingId: string) =>
   user.client.rpc('confirm_transfer_payment', { p_booking_id: bookingId })
 
+/** Attaches a proof and confirms it, failing the test if the payment is refused. */
+export async function mustPay(user: TestUser, bookingId: string) {
+  await attachProof(user, bookingId)
+  const { error } = await confirmPayment(user, bookingId)
+  if (error) throw new Error(`confirm_transfer_payment failed: ${error.message}`)
+}
+
 /** Books a seat and returns the booking, failing the test if the booking is refused. */
 export async function mustBook(user: TestUser, courseId: string) {
   const { data, error } = await book(user, courseId)
