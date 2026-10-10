@@ -1,5 +1,6 @@
 import { describe, expect, expectTypeOf, it } from 'vitest'
-import { LoginBody, type BookingDto, type CourseDto, type RefundReportDto, type RosterRowDto } from '@contract'
+import { LoginBody, type BookingDto, type CourseDto, type Me, type RefundReportDto, type RosterRowDto } from '@contract'
+import type { CurrentUser } from '@/entities/current-user'
 import type { Course } from '@/entities/course'
 import type { MyBooking } from '@/entities/my-booking'
 import type { CourseRosterRow } from '@/entities/course-roster'
@@ -15,5 +16,6 @@ describe('@contract alias', () => {
     expectTypeOf<BookingDto>().toEqualTypeOf<MyBooking>()
     expectTypeOf<RosterRowDto>().toEqualTypeOf<CourseRosterRow>()
     expectTypeOf<RefundReportDto>().toEqualTypeOf<RefundReport>()
+    expectTypeOf<Me>().toEqualTypeOf<CurrentUser>()
   })
 })

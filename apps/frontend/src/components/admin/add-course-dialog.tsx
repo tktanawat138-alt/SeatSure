@@ -45,7 +45,7 @@ const emptyCourse: CourseDraft = {
 const NO_TEACHER = 'none'
 
 interface Props {
-  teachers: Profile[]
+  teachers: Pick<Profile, 'id' | 'full_name'>[]
   busy: boolean
   /** Saves the course. Resolves to true when added; otherwise reports why through `reportError`. */
   onAdd: (draft: CourseDraft, reportError: (message: string) => void) => Promise<boolean>

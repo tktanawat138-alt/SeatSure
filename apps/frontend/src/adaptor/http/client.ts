@@ -1,0 +1,103 @@
+import type { Envelope, Session } from '@contract'
+import { DomainError } from '@/entities/domain-error'
+import { sessionStore, type SessionStore } from './session-store'
+
+export interface RequestOptions {
+  signal?: AbortSignal
+}
+
+interface Reply {
+  status: number
+  body: Envelope<unknown>
+}
+
+/**
+ * HTTP middleware for the backend API. Adds the bearer token, refreshes once on 401 (parallel
+ * 401s share one refresh) and retries once, and forgets the session when that fails. Failures
+ * become DomainError(code): the envelope message, 'network_error' or 'timeout'. Never logs tokens.
+ */
+export function createApiClient({
+  baseUrl,
+  store,
+  timeoutMs = 15_000,
+}: {
+  baseUrl: string
+  store: SessionStore
+  timeoutMs?: number
+}) {
+  let refreshing: Promise<Session> | null = null
+
+  async function send(method: string, path: string, body: unknown, token: string | null, opts: RequestOptions): Promise<Reply> {
+    const headers: Record<string, string> = {}
+    if (body !== undefined) headers['content-type'] = 'application/json'
+    if (token) headers.authorization = `Bearer ${token}`
+    const timeout = AbortSignal.timeout(timeoutMs)
+    const signal = opts.signal ? AbortSignal.any([opts.signal, timeout]) : timeout
+
+    let response: Response
+    try {
+      response = await fetch(`${baseUrl}${path}`, {
+        method,
+        headers,
+        body: body === undefined ? undefined : JSON.stringify(body),
+        signal,
+      })
+    } catch {
+      throw new DomainError(timeout.aborted ? 'timeout' : 'network_error')
+    }
+    try {
+      return { status: response.status, body: (await response.json()) as Envelope<unknown> }
+    } catch {
+      throw new DomainError(timeout.aborted ? 'timeout' : 'network_error')
+    }
+  }
+
+  function unwrap<T>({ body }: Reply): T {
+    if (body?.success === true) return body.data as T
+    if (body?.success === false && typeof body.message === 'string') throw new DomainError(body.message)
+    throw new DomainError('network_error')
+  }
+
+  function signedOut(): never {
+    store.clear()
+    throw new DomainError('not_authenticated')
+  }
+
+  /** One refresh at a time; callers that hit 401 meanwhile wait for the same one. */
+  function refresh(refreshToken: string): Promise<Session> {
+    refreshing ??= send('POST', '/auth/refresh', { refreshToken }, null, {})
+      .then((reply) => {
+        if (reply.status === 401) signedOut()
+        const session = unwrap<Session>(reply)
+        store.set(session)
+        return session
+      })
+      .finally(() => {
+        refreshing = null
+      })
+    return refreshing
+  }
+
+  return {
+    async request<T>(method: string, path: string, body?: unknown, opts: RequestOptions = {}): Promise<T> {
+      const session = store.get()
+      const reply = await send(method, path, body, session?.accessToken ?? null, opts)
+      if (reply.status !== 401 || !session) return unwrap<T>(reply)
+
+      // Another request may have refreshed already; then just retry with the newer token.
+      const latest = store.get()
+      if (!latest) signedOut()
+      const next = latest.accessToken !== session.accessToken ? latest : await refresh(latest.refreshToken)
+      const retried = await send(method, path, body, next.accessToken, opts)
+      if (retried.status === 401) signedOut()
+      return unwrap<T>(retried)
+    },
+  }
+}
+
+export type ApiClient = ReturnType<typeof createApiClient>
+
+export const apiClient = createApiClient({
+  baseUrl: import.meta.env.VITE_API_URL || 'http://localhost:3001',
+  store: sessionStore,
+})

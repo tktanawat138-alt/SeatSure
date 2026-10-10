@@ -4,7 +4,8 @@ import { Link, NavLink } from 'react-router'
 import { Logo } from '@/components/logo'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
-import { supabase, type Profile } from '@/lib/supabase'
+import { signOut } from '@/app/deps'
+import type { AuthProfile } from '@/lib/auth'
 import {
   avatarFallback,
   bar,
@@ -21,7 +22,7 @@ import {
   userText,
 } from './app-shell.styles'
 
-type Role = Profile['role']
+type Role = AuthProfile['role']
 
 const roleLabels: Record<Role, string> = {
   parent: 'ผู้ปกครอง/นักเรียน',
@@ -46,7 +47,7 @@ export function AppShell({
   profile,
   children,
 }: Readonly<{
-  profile: Profile
+  profile: AuthProfile
   children: ReactNode
 }>) {
   return (
@@ -83,7 +84,7 @@ export function AppShell({
                 <p className={userRole()}>{roleLabels[profile.role]}</p>
               </div>
             </div>
-            <Button variant="ghost" size="sm" onClick={() => supabase.auth.signOut()}>
+            <Button variant="ghost" size="sm" onClick={() => void signOut()}>
               <LogOut data-icon="inline-start" aria-hidden />
               ออกจากระบบ
             </Button>

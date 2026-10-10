@@ -47,6 +47,8 @@ const errorMessages: Record<string, string> = {
   not_authenticated: 'กรุณาเข้าสู่ระบบก่อน',
   duplicate_request: 'คำขอนี้กำลังดำเนินการอยู่ รอสักครู่แล้วโหลดหน้านี้ใหม่',
   'Invalid login credentials': 'อีเมลหรือรหัสผ่านไม่ถูกต้อง',
+  network_error: 'เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ ลองใหม่อีกครั้ง',
+  timeout: 'เซิร์ฟเวอร์ตอบช้าเกินไป ลองใหม่อีกครั้ง',
 }
 
 export const errorText = (error: { message: string }) =>

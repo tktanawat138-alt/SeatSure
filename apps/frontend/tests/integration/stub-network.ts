@@ -27,3 +27,12 @@ export const table = (name: string, reply: Reply): Route => (url) =>
 
 export const rpc = (name: string, reply: Reply): Route => (url) =>
   url.pathname === `/rest/v1/rpc/${name}` ? reply : undefined
+
+type Handler = Reply | ((init?: RequestInit) => Reply)
+
+/** A backend API route. The reply may be a function of the request, e.g. to check its headers. */
+export const api = (method: string, path: string, reply: Handler): Route => (url, init) =>
+  url.pathname === path && (init?.method ?? 'GET') === method ? (typeof reply === 'function' ? reply(init) : reply) : undefined
+
+/** The Authorization header a stubbed request carried, or null. */
+export const authorization = (init?: RequestInit) => new Headers(init?.headers).get('authorization')
