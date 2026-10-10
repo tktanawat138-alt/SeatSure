@@ -57,6 +57,7 @@ jobs:
           npm ci --prefix apps/backend
           npm ci --prefix apps/frontend
       - name: Start local Supabase and seed test data
+        id: backend
         working-directory: apps/backend
         run: |
           supabase start
@@ -65,10 +66,13 @@ jobs:
       - name: Integration tests
         working-directory: apps/frontend
         run: npm run test:integration
+      # E2E still runs when integration tests fail, so each suite reports its own result.
       - name: Install Playwright browser
+        if: ${{ !cancelled() && steps.backend.outcome == 'success' }}
         working-directory: apps/frontend
         run: npx playwright install --with-deps chromium
       - name: E2E tests
+        if: ${{ !cancelled() && steps.backend.outcome == 'success' }}
         working-directory: apps/frontend
         run: npm run test:e2e
       - name: Upload Playwright report
