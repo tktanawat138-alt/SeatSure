@@ -1,13 +1,16 @@
 import type { ReactNode } from 'react'
 import { Banknote, BookOpen, CalendarCheck, LogOut, Settings, Users, type LucideIcon } from 'lucide-react'
-import { Link, NavLink } from 'react-router'
+import { Link, NavLink, useLocation } from 'react-router'
 import { Logo } from '@/components/logo'
+import { ThemeToggle } from '@/components/theme-toggle'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
-import { supabase, type Profile } from '@/lib/supabase'
+import { signOut } from '@/app/deps'
+import type { AuthProfile } from '@/lib/auth'
 import {
   avatarFallback,
   bar,
+  content,
   header,
   main,
   nav,
@@ -21,7 +24,7 @@ import {
   userText,
 } from './app-shell.styles'
 
-type Role = Profile['role']
+type Role = AuthProfile['role']
 
 const roleLabels: Record<Role, string> = {
   parent: 'ผู้ปกครอง/นักเรียน',
@@ -46,9 +49,11 @@ export function AppShell({
   profile,
   children,
 }: Readonly<{
-  profile: Profile
+  profile: AuthProfile
   children: ReactNode
 }>) {
+  const { pathname } = useLocation()
+
   return (
     <div className={root()}>
       <header className={header()}>
@@ -83,7 +88,8 @@ export function AppShell({
                 <p className={userRole()}>{roleLabels[profile.role]}</p>
               </div>
             </div>
-            <Button variant="ghost" size="sm" onClick={() => supabase.auth.signOut()}>
+            <ThemeToggle />
+            <Button variant="ghost" size="sm" onClick={() => void signOut()}>
               <LogOut data-icon="inline-start" aria-hidden />
               ออกจากระบบ
             </Button>
@@ -91,7 +97,11 @@ export function AppShell({
         </div>
       </header>
 
-      <main className={main()}>{children}</main>
+      <main className={main()}>
+        <div key={pathname} className={content()}>
+          {children}
+        </div>
+      </main>
     </div>
   )
 }

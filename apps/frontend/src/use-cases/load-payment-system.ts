@@ -1,5 +1,5 @@
-import type { PaymentSystemGateway } from '@/interfaces/payment-system-gateway'
+import type { PaymentsGateway } from '@/interfaces/payments-gateway'
 
-export function createLoadPaymentSystem(gateway: PaymentSystemGateway) {
-  return () => gateway.load()
+export function createLoadPaymentSystem(gateway: Pick<PaymentsGateway, 'overview'>) {
+  return () => gateway.overview()
 }

@@ -5,6 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <title>SeatSure</title>
+    <script>
+      // Sets the theme class before first paint. Same rules as resolveTheme in src/lib/theme.ts.
+      (function () {
+        var t
+        try {
+          t = localStorage.getItem('seatsure-theme')
+        } catch (e) {}
+        if (t === 'dark' || (t !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches)) {
+          document.documentElement.classList.add('dark')
+        }
+      })()
+    </script>
   </head>
   <body>
     <div id="root"></div>

@@ -1,6 +1,7 @@
 import { useState, type SubmitEvent } from 'react'
 import { CircleAlert, CreditCard, FlaskConical, ShieldCheck, Users, type LucideIcon } from 'lucide-react'
 import { Logo } from '@/components/logo'
+import { ThemeToggle } from '@/components/theme-toggle'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -8,7 +9,7 @@ import { Field, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { Spinner } from '@/components/ui/spinner'
 import { errorText } from '@/lib/format'
-import { supabase } from '@/lib/supabase'
+import { signIn as signInWithPassword } from '@/app/deps'
 import * as styles from './LoginPage.styles'
 import type { DemoGridProps } from './LoginPage.styles'
 
@@ -114,9 +115,13 @@ export default function LoginPage() {
   async function signIn(withEmail: string, withPassword: string) {
     setBusy(true)
     setError('')
-    const { error } = await supabase.auth.signInWithPassword({ email: withEmail, password: withPassword })
-    if (error) setError(errorText(error))
-    setBusy(false)
+    try {
+      await signInWithPassword(withEmail, withPassword)
+    } catch (error) {
+      setError(errorText(error instanceof Error ? error : { message: 'network_error' }))
+    } finally {
+      setBusy(false)
+    }
   }
 
   function submit(event: SubmitEvent<HTMLFormElement>) {
@@ -126,6 +131,9 @@ export default function LoginPage() {
 
   return (
     <div className={styles.page()}>
+      <div className={styles.themeCorner()}>
+        <ThemeToggle />
+      </div>
       <BrandPanel />
 
       <main className={styles.main()}>

@@ -17,7 +17,7 @@ import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Spinner } from '@/components/ui/spinner'
 import { Textarea } from '@/components/ui/textarea'
-import type { Profile } from '@/lib/supabase'
+import type { Profile } from '@/entities/profile'
 import * as s from './add-course-dialog.styles'
 
 export interface CourseDraft {
@@ -45,7 +45,7 @@ const emptyCourse: CourseDraft = {
 const NO_TEACHER = 'none'
 
 interface Props {
-  teachers: Profile[]
+  teachers: Pick<Profile, 'id' | 'full_name'>[]
   busy: boolean
   /** Saves the course. Resolves to true when added; otherwise reports why through `reportError`. */
   onAdd: (draft: CourseDraft, reportError: (message: string) => void) => Promise<boolean>

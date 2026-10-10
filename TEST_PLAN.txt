@@ -19,8 +19,10 @@ Workers โดยข้อมูลการชำระเงินเป็น
 2. สถานะ test ใน repository ปัจจุบัน
 สิ่งที่มีอยู่แล้ว:
 - Unit: apps/frontend/tests/unit/ ตรวจรูปแบบ UI และกติกาแบ่ง layer
-- Integration: apps/frontend/tests/integration/ ตรวจ overbooking, payment และ RLS/security
-- E2E: apps/frontend/tests/e2e/login.spec.ts ตรวจฟอร์ม login ด้วย Playwright
+- Integration (backend): apps/backend/tests/integration/ ตรวจ overbooking, การจ่ายด้วยสลิปโอน และ RLS/security
+- Integration (frontend): apps/frontend/tests/integration/ ตรวจ adaptor ผ่าน network จำลอง
+- Integration (ข้าม app): tests/integration/ ตรวจ adaptor ของ frontend กับ backend จริง
+- E2E: tests/e2e/login.spec.ts ตรวจฟอร์ม login ด้วย Playwright
 - Taskfile มี task test:unit, task test:integration, task test:e2e และ task test
 - CI: .github/workflows/ci.yml รัน unit, integration, E2E และ SonarQube scan
   เมื่อ push เข้า main หรือเปิด PR (SonarQube ต้องตั้ง secret SONAR_TOKEN ก่อน)
@@ -78,8 +80,8 @@ Integration tests ต้องใช้ local Supabase และ service-role ke
 การ reset จะลบข้อมูล local ทั้งหมด
 
 5. แผน E2E Automation Framework (Playwright + Page Object Model)
-วาง tests ไว้ใน apps/frontend/tests/e2e/ และ Page Objects/fixtures ไว้ใน
-apps/frontend/tests/e2e/pages/ และ apps/frontend/tests/e2e/fixtures/ ตามลำดับ
+วาง tests ไว้ใน tests/e2e/ และ Page Objects/fixtures ไว้ใน
+tests/e2e/pages/ และ tests/e2e/fixtures/ ตามลำดับ
 ให้ spec อธิบายผลลัพธ์ทางธุรกิจ ส่วน Page Object รวม locator/action ของแต่ละหน้า
 ใช้ locator ตาม role/label/text และหลีกเลี่ยง selector ที่ผูกกับ CSS
 

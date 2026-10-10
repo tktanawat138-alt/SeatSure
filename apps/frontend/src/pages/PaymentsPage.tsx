@@ -35,7 +35,7 @@ export default function PaymentsPage() {
   }, [])
 
   useEffect(() => { void load() }, [load])
-  useAutoRefresh(load, 'courses', 'bookings', 'payments', 'payment_proofs')
+  useAutoRefresh(load)
 
   async function openRoster(course: Course) {
     setRoster({ course, rows: null, error: '' })

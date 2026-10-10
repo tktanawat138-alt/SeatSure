@@ -1,9 +1,11 @@
 import { DomainError } from '@/entities/domain-error'
-import type { CourseScheduleGateway } from '@/interfaces/course-schedule-gateway'
+import type { CoursesGateway } from '@/interfaces/courses-gateway'
 
-export function createUpdateCourseSchedule(gateway: CourseScheduleGateway) {
+export function createUpdateCourseSchedule(gateway: CoursesGateway) {
   return async (courseId: string, startsAt: string, endsAt: string) => {
-    if (new Date(endsAt) <= new Date(startsAt)) throw new DomainError('invalid_course_schedule')
-    await gateway.update(courseId, startsAt, endsAt)
+    const start = new Date(startsAt)
+    const end = new Date(endsAt)
+    if (!(end > start)) throw new DomainError('invalid_course_schedule')
+    await gateway.update(courseId, { startsAt: start.toISOString(), endsAt: end.toISOString() })
   }
 }

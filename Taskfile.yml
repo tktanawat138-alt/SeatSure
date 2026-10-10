@@ -1,50 +1,108 @@
 version: '3'
 
-# task up    start Supabase (backend) + Vite dev server (frontend)
+# task up    start Supabase + Express API (backend) + Vite dev server (frontend)
 # task down  stop both
 # task test  unit, integration, e2e
 
 tasks:
   up:
-    desc: Start backend (local Supabase) and frontend dev server
+    desc: Start backend (local Supabase + API) and frontend dev server
     cmds:
       - task: backend:up
+      - task: backend:api:up
       - task: frontend:up
 
   down:
     desc: Stop frontend dev server and backend
     cmds:
       - task: frontend:down
+      - task: backend:api:down
       - task: backend:down
 
   test:
-    desc: Run unit, integration and e2e tests
+    desc: Run every level - unit, integration (frontend, backend, cross-app), e2e
     cmds:
       - task: test:unit
       - task: test:integration
       - task: test:e2e
 
   test:unit:
-    desc: Unit tests (no services needed)
+    desc: Unit tests, frontend and backend (no services needed)
+    deps: [frontend:install]
+    cmds:
+      - cd apps/frontend && npm run test:unit
+      - cd apps/backend && npm install --silent && npm run test:unit
+
+  test:integration:
+    desc: Integration - frontend (stubbed network), backend (real DB), cross-app (/tests)
+    cmds:
+      - task: test:integration:frontend
+      - task: test:integration:backend
+      - task: test:integration:cross
+
+  test:integration:frontend:
+    desc: Frontend adaptors over a stubbed network (no services needed)
     dir: apps/frontend
     deps: [frontend:install]
     cmds:
-      - npm run test:unit
+      - npm run test:integration
 
-  test:integration:
-    desc: Integration tests against local Supabase
-    dir: apps/frontend
-    deps: [frontend:install, backend:up]
+  test:integration:backend:
+    desc: Backend RLS, RPC, concurrency against local Supabase
+    dir: apps/backend
+    deps: [backend:up]
     cmds:
       - npm run test:integration
 
-  test:e2e:
-    desc: Playwright e2e against the running app
-    dir: apps/frontend
-    deps: [frontend:install, backend:up]
+  test:integration:cross:
+    desc: Frontend adaptors against the real backend (/tests/integration)
+    dir: tests
+    deps: [backend:up]
     cmds:
+      - npm install --silent
+      - npm run integration
+
+  test:e2e:
+    desc: Playwright e2e (/tests/e2e) against the running app
+    dir: tests
+    deps: [backend:up]
+    cmds:
+      - npm install --silent
       - npx playwright install chromium
-      - npm run test:e2e
+      - npm run e2e
+
+  test:load:
+    desc: k6 load tests (/tests/load) against the local API - needs task up
+    dir: tests
+    deps: [backend:up]
+    cmds:
+      - |
+        if ! command -v k6 >/dev/null 2>&1; then
+          echo "k6 not found, install it: brew install k6 (https://github.com/grafana/k6)"
+          exit 1
+        fi
+      - k6 run load/smoke.js
+      - k6 run load/auth.js
+      - k6 run load/booking.js
+
+  test:ui:frontend:
+    desc: Vitest UI for the frontend unit + integration tests (https://vitest.dev/guide/ui)
+    dir: apps/frontend
+    deps: [frontend:install]
+    cmds:
+      - npm run test:ui
+
+  test:ui:backend:
+    desc: Vitest UI for the backend unit + integration tests (integration needs task up)
+    dir: apps/backend
+    cmds:
+      - npm run test:ui
+
+  test:ui:cross:
+    desc: Vitest UI for the cross-app integration tests in /tests (needs task up)
+    dir: tests
+    cmds:
+      - npm run integration:ui
 
   backend:up:
     desc: Start local Supabase, write apps/frontend/.env.local, seed sample data
@@ -59,6 +117,27 @@ tasks:
         supabase status >/dev/null 2>&1 || supabase start
         npm run env
         npm run seed
+
+  backend:api:up:
+    desc: Start the Express API in the background (http://localhost:3001)
+    dir: apps/backend
+    cmds:
+      - task: backend:api:down
+      - npm install --silent
+      - bash -c 'nohup npm run dev > ../../.backend.log 2>&1 < /dev/null & disown'
+      - |
+        for _ in $(seq 1 15); do
+          lsof -ti tcp:3001 >/dev/null 2>&1 && { echo "api http://localhost:3001 (log .backend.log)"; exit 0; }
+          sleep 0.2
+        done
+        echo "WARN: API did not start, see .backend.log"
+
+  backend:api:down:
+    desc: Stop the Express API
+    cmds:
+      - lsof -ti tcp:3001 | xargs kill 2>/dev/null || true
+      # tsx watch outlives its child and would respawn it on the next file change
+      - pkill -f 'apps/backend/node_modules/.bin/tsx watch' 2>/dev/null || true
 
   backend:down:
     desc: Stop local Supabase
@@ -75,10 +154,10 @@ tasks:
       - npm run seed
 
   backend:types:
-    desc: Regenerate apps/frontend/src/lib/database.types.ts after a schema change
+    desc: Regenerate apps/backend/src/adaptor/supabase/database.types.ts after a schema change
     dir: apps/backend
     cmds:
-      - supabase gen types typescript --local > ../frontend/src/lib/database.types.ts
+      - supabase gen types typescript --local > src/adaptor/supabase/database.types.ts
 
   frontend:install:
     internal: true
@@ -101,3 +180,30 @@ tasks:
     desc: Stop the Vite dev server
     cmds:
       - lsof -ti tcp:5173 | xargs kill 2>/dev/null || true
+
+  docs:openapi:
+    desc: Regenerate docs/fern/openapi/openapi.json from the endpoint registry (run after any API change)
+    dir: apps/backend
+    cmds:
+      - npm install --silent
+      - npm run docs:openapi
+
+  docs:check:
+    desc: Validate the Fern project (docs/fern) with fern check
+    dir: docs
+    cmds:
+      - npm install --silent
+      - npx fern-api check
+
+  docs:dev:
+    desc: Preview the docs locally with fern docs dev (http://localhost:3000)
+    dir: docs
+    cmds:
+      - npm install --silent
+      - npx fern-api docs dev
+
+  docs:
+    desc: Regenerate the OpenAPI spec, then validate the docs
+    cmds:
+      - task: docs:openapi
+      - task: docs:check

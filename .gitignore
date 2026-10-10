@@ -1,5 +1,8 @@
 node_modules
 dist
+.env
+.env.*
+!.env.example
 .env.local
 .env.*.local
 .wrangler
@@ -9,4 +12,8 @@ apps/backend/supabase/.branches
 test-results
 playwright-report
 .frontend.log
+.backend.log
+/supabase/
 .task
+.superpowers/
+tsconfig.tsbuildinfo

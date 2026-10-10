@@ -21,19 +21,27 @@ jobs:
     name: Unit tests and build
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    defaults:
-      run:
-        working-directory: apps/frontend
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: npm
-          cache-dependency-path: apps/frontend/package-lock.json
-      - run: npm ci
-      - run: npm run test:unit
-      - run: npm run build
+          cache-dependency-path: |
+            apps/frontend/package-lock.json
+            apps/backend/package-lock.json
+      - name: Frontend unit tests and build
+        working-directory: apps/frontend
+        run: |
+          npm ci
+          npm run test:unit
+          npm run build
+      - name: Backend typecheck and unit tests (includes the OpenAPI spec freshness check)
+        working-directory: apps/backend
+        run: |
+          npm ci
+          npm run typecheck
+          npm run test:unit
 
   integration-e2e:
     name: Integration and E2E tests
@@ -48,6 +56,7 @@ jobs:
           cache-dependency-path: |
             apps/frontend/package-lock.json
             apps/backend/package-lock.json
+            tests/package-lock.json
       # Same CLI version as local development, so `supabase status -o env` reports the keys write-env.mjs reads.
       - uses: supabase/setup-cli@v3
         with:
@@ -56,6 +65,7 @@ jobs:
         run: |
           npm ci --prefix apps/backend
           npm ci --prefix apps/frontend
+          npm ci --prefix tests
       - name: Start local Supabase and seed test data
         id: backend
         working-directory: apps/backend
@@ -63,28 +73,57 @@ jobs:
           supabase start
           npm run env
           npm run seed
-      - name: Integration tests
+      - name: Frontend integration tests (stubbed network)
         working-directory: apps/frontend
         run: npm run test:integration
+      - name: Backend integration tests (API over HTTP against local Supabase)
+        working-directory: apps/backend
+        run: npm run test:integration
+      # Cross-app integration needs the API running; it is stopped again before e2e, whose
+      # Playwright config starts the API and the web app itself.
+      - name: Cross-app integration tests
+        working-directory: tests
+        run: |
+          (npm start --prefix ../apps/backend > ../api.log 2>&1 &)
+          npx --yes wait-on -t 60000 http://localhost:3001/health
+          npm run integration
+          pkill -f "tsx src/main.ts" || true
       # E2E still runs when integration tests fail, so each suite reports its own result.
       - name: Install Playwright browser
         if: ${{ !cancelled() && steps.backend.outcome == 'success' }}
-        working-directory: apps/frontend
+        working-directory: tests
         run: npx playwright install --with-deps chromium
       - name: E2E tests
         if: ${{ !cancelled() && steps.backend.outcome == 'success' }}
-        working-directory: apps/frontend
-        run: npm run test:e2e
+        working-directory: tests
+        run: npm run e2e
       - name: Upload Playwright report
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v7
         with:
           name: playwright-report
           path: |
-            apps/frontend/playwright-report/
-            apps/frontend/test-results/
+            tests/playwright-report/
+            tests/test-results/
           retention-days: 14
           if-no-files-found: ignore
+
+  docs:
+    name: Docs (Fern check)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: docs
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: docs/package-lock.json
+      - run: npm ci
+      - run: npx fern-api check
 
   sonar:
     name: SonarQube scan

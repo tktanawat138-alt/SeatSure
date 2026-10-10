@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { baht, bookingStatus } from '@/lib/format'
-import type { Course } from '@/lib/supabase'
+import type { Course } from '@/entities/course'
 import * as s from './roster-dialog.styles'
 
 interface Props {

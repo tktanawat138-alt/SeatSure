@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import type { Booking } from './supabase'
+import type { Booking } from '@/entities/booking'
 
 const bahtFormat = new Intl.NumberFormat('th-TH', {
   style: 'currency',
@@ -34,8 +34,14 @@ export const courseSchedule = (startsAt: string, endsAt: string) => {
 
 const errorMessages: Record<string, string> = {
   course_full: 'คอร์สนี้เต็มแล้ว',
+  forbidden: 'คุณไม่มีสิทธิ์ทำรายการนี้',
+  invalid_course_schedule: 'วันเวลาเรียนไม่ถูกต้อง เวลาสิ้นสุดต้องหลังเวลาเริ่ม',
+  course_not_found: 'ไม่พบคอร์สนี้',
+  proof_type_invalid: 'เลือกไฟล์ JPG, PNG หรือ WebP',
+  proof_size_exceeded: 'ไฟล์ต้องมีขนาดไม่เกิน 5 MB',
   course_cancelled: 'คอร์สนี้ถูกยกเลิกแล้ว',
   course_already_cancelled: 'คอร์สนี้ถูกยกเลิกไปแล้ว',
+  course_not_pending: 'คอร์สนี้ผ่านการพิจารณาแล้ว',
   cancellation_reason_required: 'กรุณาระบุเหตุผลที่ยกเลิกคอร์ส',
   admin_required: 'เฉพาะผู้ดูแลระบบเท่านั้นที่ทำรายการนี้ได้',
   registration_closed: 'คอร์สนี้ปิดรับสมัครแล้ว',
@@ -47,6 +53,9 @@ const errorMessages: Record<string, string> = {
   not_authenticated: 'กรุณาเข้าสู่ระบบก่อน',
   duplicate_request: 'คำขอนี้กำลังดำเนินการอยู่ รอสักครู่แล้วโหลดหน้านี้ใหม่',
   'Invalid login credentials': 'อีเมลหรือรหัสผ่านไม่ถูกต้อง',
+  network_error: 'เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ ลองใหม่อีกครั้ง',
+  timeout: 'เซิร์ฟเวอร์ตอบช้าเกินไป ลองใหม่อีกครั้ง',
+  rate_limited: 'ลองเข้าสู่ระบบบ่อยเกินไป รอสักครู่แล้วลองใหม่',
 }
 
 export const errorText = (error: { message: string }) =>

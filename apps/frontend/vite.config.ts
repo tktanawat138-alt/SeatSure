@@ -1,40 +1,21 @@
 import { fileURLToPath } from 'node:url'
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
-import { loadEnv } from 'vite'
 import { defineConfig } from 'vitest/config'
 
-// `vitest run --mode unsafe` runs the same tests against the naive booking code.
-export default defineConfig(({ mode }) => ({
+export default defineConfig({
   plugins: [react(), tailwindcss()],
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
+      '@contract': fileURLToPath(new URL('../backend/src/adaptor/http/contract.ts', import.meta.url)),
     },
   },
+  // Unit + integration (adaptors over a stubbed network). DB integration lives in apps/backend,
+  // cross-app integration and e2e in /tests. The API URL is fake: no test here reaches a real server.
   test: {
-    projects: [
-      {
-        extends: true,
-        test: { name: 'unit', environment: 'node', include: ['tests/unit/**/*.test.ts'] },
-      },
-      {
-        // Needs the local Supabase stack (task up).
-        extends: true,
-        test: {
-          name: 'integration',
-          environment: 'node',
-          include: ['tests/integration/**/*.test.ts'],
-          globalSetup: ['tests/integration/global-setup.ts'],
-          env: {
-            ...loadEnv(mode, process.cwd(), ['VITE_SUPABASE_', 'SUPABASE_']),
-            BOOKING_MODE: mode === 'unsafe' ? 'unsafe' : 'safe',
-          },
-          fileParallelism: false,
-          testTimeout: 30_000,
-          hookTimeout: 60_000,
-        },
-      },
-    ],
+    environment: 'node',
+    include: ['tests/{unit,integration}/**/*.test.ts'],
+    env: { VITE_API_URL: 'http://api.test' },
   },
-}))
+})

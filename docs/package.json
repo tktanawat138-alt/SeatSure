@@ -1,0 +1,13 @@
+{
+  "name": "seatsure-docs",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Fern docs project (docs/fern). Single source of truth for guides and the API reference.",
+  "scripts": {
+    "check": "fern-api check",
+    "dev": "fern-api docs dev"
+  },
+  "devDependencies": {
+    "fern-api": "^5.152.2"
+  }
+}
