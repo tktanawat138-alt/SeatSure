@@ -10,7 +10,7 @@ const keys = existsSync(envFile) ? parseEnv(readFileSync(envFile, 'utf8')) : {}
 export default defineConfig(({ mode }) => ({
   test: {
     environment: 'node',
-    include: ['tests/integration/**/*.test.ts'],
+    include: ['tests/unit/**/*.test.ts', 'tests/integration/**/*.test.ts'],
     globalSetup: ['tests/integration/global-setup.ts'],
     env: { ...keys, BOOKING_MODE: mode === 'unsafe' ? 'unsafe' : 'safe' },
     fileParallelism: false,

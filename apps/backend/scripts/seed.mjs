@@ -26,6 +26,7 @@ const PASSWORD = process.env.SEED_PASSWORD || 'seatsure123'
 
 const accounts = [
   { email: 'admin@seatsure.test', fullName: 'คุณวิภา', role: 'admin' },
+  { email: 'admin01@seatsure.test', fullName: 'แอดมินโรงเรียน', role: 'admin' },
   { email: 'teacher1@seatsure.test', fullName: 'ครูสมศรี', role: 'teacher' },
   { email: 'teacher2@seatsure.test', fullName: 'ครูวิชัย', role: 'teacher' },
   { email: 'parent1@seatsure.test', fullName: 'น้องมะลิ', role: 'parent' },

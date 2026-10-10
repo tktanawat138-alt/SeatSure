@@ -9,4 +9,7 @@ apps/backend/supabase/.branches
 test-results
 playwright-report
 .frontend.log
+.backend.log
+/supabase/
 .task
+.superpowers/

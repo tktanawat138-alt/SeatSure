@@ -1,20 +1,22 @@
 version: '3'
 
-# task up    start Supabase (backend) + Vite dev server (frontend)
+# task up    start Supabase + Express API (backend) + Vite dev server (frontend)
 # task down  stop both
 # task test  unit, integration, e2e
 
 tasks:
   up:
-    desc: Start backend (local Supabase) and frontend dev server
+    desc: Start backend (local Supabase + API) and frontend dev server
     cmds:
       - task: backend:up
+      - task: backend:api:up
       - task: frontend:up
 
   down:
     desc: Stop frontend dev server and backend
     cmds:
       - task: frontend:down
+      - task: backend:api:down
       - task: backend:down
 
   test:
@@ -82,6 +84,22 @@ tasks:
         supabase status >/dev/null 2>&1 || supabase start
         npm run env
         npm run seed
+
+  backend:api:up:
+    desc: Start the Express API in the background (http://localhost:3001)
+    dir: apps/backend
+    cmds:
+      - task: backend:api:down
+      - npm install --silent
+      - bash -c 'nohup npm run dev > ../../.backend.log 2>&1 < /dev/null & disown'
+      - echo "api http://localhost:3001 (log .backend.log)"
+
+  backend:api:down:
+    desc: Stop the Express API
+    cmds:
+      - lsof -ti tcp:3001 | xargs kill 2>/dev/null || true
+      # tsx watch outlives its child and would respawn it on the next file change
+      - pkill -f 'apps/backend/node_modules/.bin/tsx watch' 2>/dev/null || true
 
   backend:down:
     desc: Stop local Supabase
