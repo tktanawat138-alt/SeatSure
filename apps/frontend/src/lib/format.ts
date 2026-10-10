@@ -34,6 +34,11 @@ export const courseSchedule = (startsAt: string, endsAt: string) => {
 
 const errorMessages: Record<string, string> = {
   course_full: 'คอร์สนี้เต็มแล้ว',
+  forbidden: 'คุณไม่มีสิทธิ์ทำรายการนี้',
+  invalid_course_schedule: 'วันเวลาเรียนไม่ถูกต้อง เวลาสิ้นสุดต้องหลังเวลาเริ่ม',
+  course_not_found: 'ไม่พบคอร์สนี้',
+  proof_type_invalid: 'เลือกไฟล์ JPG, PNG หรือ WebP',
+  proof_size_exceeded: 'ไฟล์ต้องมีขนาดไม่เกิน 5 MB',
   course_cancelled: 'คอร์สนี้ถูกยกเลิกแล้ว',
   course_already_cancelled: 'คอร์สนี้ถูกยกเลิกไปแล้ว',
   cancellation_reason_required: 'กรุณาระบุเหตุผลที่ยกเลิกคอร์ส',
