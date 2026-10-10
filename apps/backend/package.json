@@ -7,9 +7,14 @@
     "env": "node scripts/write-env.mjs",
     "seed": "node --env-file=../frontend/.env.local scripts/seed.mjs",
     "cloud:seed": "node --env-file=.env.production.local scripts/seed.mjs",
-    "cloud:courses": "node --env-file=../../.env.production.local scripts/create-demo-courses.mjs"
+    "cloud:courses": "node --env-file=../../.env.production.local scripts/create-demo-courses.mjs",
+    "test": "vitest run",
+    "test:unsafe": "vitest run --mode unsafe"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.117.3"
+  },
+  "devDependencies": {
+    "vitest": "^5.0.3"
   }
 }

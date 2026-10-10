@@ -86,16 +86,21 @@ Dependencies point inwards. A layer may import only the layers listed in "May im
 - `apps/frontend/tests/unit/layering.test.ts` enforces the boundaries. Keep it green.
 - Existing code in `apps/frontend/src/lib`, `apps/frontend/src/pages`, `apps/frontend/src/components` predates this layout. Move code into layers when you touch it; do not mix old and new in one file.
 
-## Tests: one folder per level
+## Tests: per app (unit + integration), cross-app at the root (integration + e2e)
 
-| Level | Path | Runs against | Command |
+| Where | Level | Scope | Command |
 |---|---|---|---|
-| Unit | `apps/frontend/tests/unit/` | entities and use cases with fake ports. No DB, no network, no React | `task test:unit` |
-| Integration | `apps/frontend/tests/integration/` | adaptor + real local Supabase (RLS, RPC, concurrency) | `task test:integration` |
-| E2E | `apps/frontend/tests/e2e/` | browser against the running app, Playwright is the core service (`playwright.config.ts`, starts `npm run dev`) | `task test:e2e` |
+| `apps/frontend/tests/unit/` | Unit | entities, use cases with fake ports. No DB, no network, no React | `task test:unit` |
+| `apps/frontend/tests/integration/` | Integration, one app | real adaptors over a stubbed network (`stub-network.ts`) | `task test:integration:frontend` |
+| `apps/backend/tests/unit/` | Unit | pure script logic. Create only when there is some | |
+| `apps/backend/tests/integration/` | Integration, one app | real local Supabase: RLS, RPC, concurrency | `task test:integration:backend` |
+| `tests/integration/` | Integration, cross-app | frontend adaptors against the real backend: shapes and error codes the UI relies on | `task test:integration:cross` |
+| `tests/e2e/` | E2E | browser through the running app, Playwright is the core service (`tests/playwright.config.ts`) | `task test:e2e` |
 
-- Mirror the layer: a use case test goes in `apps/frontend/tests/unit/use-cases/`, an adaptor test in `apps/frontend/tests/integration/`.
+- `task test` runs every level. Each folder has its own `package.json`/vitest config.
+- Rule for "integration": inside an app = that app plus one real dependency. At the root = two apps wired together. Do not re-test backend rules at the root; test only the contract the frontend depends on.
+- Mirror the layer: a use case test goes in `apps/frontend/tests/unit/use-cases/`.
 - Write the failing test first (TDD), then the code.
 - Name tests `<unit> <scenario> <expected>`. No `sleep`; wait on a condition.
-- Unit tests must not need `.env.local`; integration tests may.
-- E2E: Playwright only (`@playwright/test`), specs named `apps/frontend/tests/e2e/<flow>.spec.ts`. Locate by role/label, not CSS. First run: `npx playwright install chromium`.
+- Unit and frontend integration tests need no `.env.local`. Backend, cross-app and e2e need `task up` first.
+- E2E: Playwright only (`@playwright/test`), specs named `tests/e2e/<flow>.spec.ts`. Locate by role/label, not CSS. First run installs Chromium.

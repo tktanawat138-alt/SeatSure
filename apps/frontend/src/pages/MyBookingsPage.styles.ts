@@ -20,3 +20,4 @@ export const uploadLabel = cva('mt-3 flex cursor-pointer items-center gap-2 font
 export const confirmPayment = cva('mt-3 w-full')
 export const uploadIcon = cva('size-4')
 export const fileInput = cva('sr-only')
+export const transferTitle = cva('font-medium')

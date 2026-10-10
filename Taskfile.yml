@@ -18,7 +18,7 @@ tasks:
       - task: backend:down
 
   test:
-    desc: Run unit, integration and e2e tests
+    desc: Run every level - unit, integration (frontend, backend, cross-app), e2e
     cmds:
       - task: test:unit
       - task: test:integration
@@ -32,19 +32,42 @@ tasks:
       - npm run test:unit
 
   test:integration:
-    desc: Integration tests against local Supabase
+    desc: Integration - frontend (stubbed network), backend (real DB), cross-app (/tests)
+    cmds:
+      - task: test:integration:frontend
+      - task: test:integration:backend
+      - task: test:integration:cross
+
+  test:integration:frontend:
+    desc: Frontend adaptors over a stubbed network (no services needed)
     dir: apps/frontend
-    deps: [frontend:install, backend:up]
+    deps: [frontend:install]
     cmds:
       - npm run test:integration
 
-  test:e2e:
-    desc: Playwright e2e against the running app
-    dir: apps/frontend
-    deps: [frontend:install, backend:up]
+  test:integration:backend:
+    desc: Backend RLS, RPC, concurrency against local Supabase
+    dir: apps/backend
+    deps: [backend:up]
     cmds:
+      - npm test
+
+  test:integration:cross:
+    desc: Frontend adaptors against the real backend (/tests/integration)
+    dir: tests
+    deps: [backend:up]
+    cmds:
+      - npm install --silent
+      - npm run integration
+
+  test:e2e:
+    desc: Playwright e2e (/tests/e2e) against the running app
+    dir: tests
+    deps: [backend:up]
+    cmds:
+      - npm install --silent
       - npx playwright install chromium
-      - npm run test:e2e
+      - npm run e2e
 
   backend:up:
     desc: Start local Supabase, write apps/frontend/.env.local, seed sample data
