@@ -170,6 +170,13 @@ Everything runs locally with one command. The local database holds only syntheti
    task down
    ```
 
+To start every tool at once (web app, API, Supabase, Fern docs, three Vitest UIs and the k6 dashboard) and open them in the browser:
+
+```sh
+task up:all     # OPEN=0 task up:all prints the URLs without opening them
+task down:all   # stops all of it
+```
+
 | Service | URL |
 |---|---|
 | Web app | http://localhost:5173 |
