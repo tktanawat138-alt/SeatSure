@@ -10,7 +10,7 @@ React 19, Vite, Tailwind v4 and shadcn/ui (radix-nova), with Thai UI text. It ta
 
 | Where | What |
 |---|---|
-| `src/entities/` | domain types and pure rules (course, my booking, roster, `DomainError`) |
+| `src/entities/` | domain types and pure rules (course, booking, my booking, roster, profile, `DomainError`); `Booking` re-exports the contract DTO |
 | `src/interfaces/` | gateway ports such as `AuthGateway` |
 | `src/use-cases/` | one factory per action (`createSignIn`, `createLoadMyBookings`, ...), gateway passed in |
 | `src/adaptor/http/` | `client.ts` (middleware), `session-store.ts`, and one `<area>-gateway.ts` per port |
@@ -26,7 +26,14 @@ is a second implementation (a fake for tests) or the contract may change.
   between parallel requests, times out after 15 s and converts failures to `DomainError`. Details in [Authentication](/authentication).
 - `session-store.ts` keeps the tokens in `localStorage`, shared across tabs.
 - A gateway implements a port over the client: `client.request<Type>('GET', '/me')`. Types come from `@contract`.
-- The base URL is `VITE_API_URL`, default `http://localhost:3001`.
+- The base URL is `VITE_API_URL`, default `http://localhost:3001`. It is the only variable the browser bundle reads.
+- There is no Supabase client in the frontend: `@supabase/*` is not a dependency and `layering.test.ts` fails on any such
+  import under `src/`. Never put a service key in anything bundled.
+
+## Auto-refresh
+
+Pages call `useAutoRefresh(load)` (`src/lib/use-auto-refresh.ts`): the data reloads every 15 s and when the tab becomes
+visible again. There is no Realtime subscription, so another user's change shows up within about 15 s.
 
 ## shadcn/ui only
 

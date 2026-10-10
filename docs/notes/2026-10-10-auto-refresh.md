@@ -16,5 +16,5 @@
 
 ## Caveats
 
-- `useAutoRefresh` still tolerates `..._legacyTables: string[]` so callers that still pass table names compile. Remove it once every caller drops the list.
+- The temporary `..._legacyTables` parameter of `useAutoRefresh` was removed in `2026-10-10-supabase-js-removed.md`.
 - Changes made by other users now show up within 15 s (or on tab focus) instead of within about 250 ms.

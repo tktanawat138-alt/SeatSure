@@ -7,7 +7,7 @@ description: The three parts, the request path and the Clean Architecture import
 Browser -> Frontend (React) -> client middleware -> Backend API (Express) -> Supabase (Postgres, Auth, Storage)
 ```
 
-- The **frontend** never calls Supabase for data. Every call goes through `apps/frontend/src/adaptor/http/client.ts`, which
+- The **frontend** never calls Supabase: it has no Supabase client or key, and polls the API for fresh data (no Realtime). Every call goes through `apps/frontend/src/adaptor/http/client.ts`, which
   adds the bearer token, refreshes it once on a 401 and unwraps the response envelope.
 - The **backend** verifies the Supabase JWT on every protected route, applies the business rules in use cases and talks to
   Supabase with the service key. The atomic SQL functions (`book_seat`, `confirm_transfer_payment`, `cancel_course`) stay
@@ -55,8 +55,8 @@ Dependencies point inwards. A layer may import only the layers listed in "May im
 | UI | `ui/` and, for older code, `pages/` and `components/` | React; calls use cases | use-cases, entities, `components/ui` |
 | Composition root | `main.tsx`, `app/deps.ts` | wires adaptors into use cases | everything |
 
-No `react` or `@supabase/*` in `entities`, `interfaces`, `use-cases`. `apps/frontend/tests/unit/layering.test.ts`
-enforces it. Code in `src/lib`, `src/pages` and `src/components` predates the layout: move it into a layer when you touch it.
+No `react` in `entities`, `interfaces`, `use-cases`, and no `@supabase/*` anywhere in `apps/frontend/src` (the frontend has no
+Supabase client; only the backend does). `apps/frontend/tests/unit/layering.test.ts` enforces both. Code in `src/lib`, `src/pages` and `src/components` predates the layout: move it into a layer when you touch it.
 
 ### Shared contract
 

@@ -89,7 +89,7 @@ task test:integration             # โหมดปกติ: ผ่านทั
 |---|---|
 | `task backend:reset` | ล้างฐานข้อมูล สร้างใหม่จาก migration แล้วใส่ข้อมูลตัวอย่าง |
 | `task down` | ปิด Supabase ในเครื่อง |
-| `task backend:types` | สร้าง `src/lib/database.types.ts` ใหม่หลังแก้ schema |
+| `task backend:types` | สร้าง `apps/backend/src/adaptor/supabase/database.types.ts` ใหม่หลังแก้ schema |
 
 ## ใช้งานผ่านอินเทอร์เน็ต
 
