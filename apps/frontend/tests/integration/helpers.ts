@@ -24,7 +24,7 @@ export interface TestUser {
 const PASSWORD = 'test-password-123'
 const runId = randomUUID().slice(0, 8)
 let sequence = 0
-const created = { users: [] as string[], courses: [] as string[] }
+const created = { users: [] as string[], courses: [] as string[], proofs: [] as string[] }
 
 export async function createUser(role: Role = 'parent'): Promise<TestUser> {
   const n = ++sequence
@@ -77,8 +77,35 @@ export async function createCourse(options: {
 export const book = (user: TestUser, courseId: string) =>
   user.client.rpc('book_seat', { p_course_id: courseId, p_student_name: 'นักเรียนทดสอบ' })
 
-export const pay = (user: TestUser, bookingId: string, idempotencyKey: string = randomUUID()) =>
-  user.client.rpc('pay_booking', { p_booking_id: bookingId, p_idempotency_key: idempotencyKey })
+/** A 1x1 PNG: the payment-proofs bucket only takes images. */
+const PROOF_IMAGE = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
+  'base64',
+)
+
+/** Attaches a transfer proof the way the app does: upload the image, then record its path. */
+export async function attachProof(user: TestUser, bookingId: string) {
+  const path = `${user.id}/${bookingId}-${randomUUID()}.png`
+  const { error: uploadError } = await user.client.storage
+    .from('payment-proofs')
+    .upload(path, PROOF_IMAGE, { contentType: 'image/png' })
+  if (uploadError) throw new Error(`proof upload failed: ${uploadError.message}`)
+  created.proofs.push(path)
+
+  const { error } = await user.client.from('payment_proofs').insert({ booking_id: bookingId, proof_path: path })
+  if (error) throw new Error(`payment_proofs insert failed: ${error.message}`)
+}
+
+/** The parent pressing "ยืนยันการชำระเงิน". */
+export const confirmPayment = (user: TestUser, bookingId: string) =>
+  user.client.rpc('confirm_transfer_payment', { p_booking_id: bookingId })
+
+/** Attaches a proof and confirms it, failing the test if the payment is refused. */
+export async function mustPay(user: TestUser, bookingId: string) {
+  await attachProof(user, bookingId)
+  const { error } = await confirmPayment(user, bookingId)
+  if (error) throw new Error(`confirm_transfer_payment failed: ${error.message}`)
+}
 
 /** Books a seat and returns the booking, failing the test if the booking is refused. */
 export async function mustBook(user: TestUser, courseId: string) {
@@ -115,12 +142,16 @@ export async function paymentsFor(bookingId: string) {
   return data
 }
 
-/** Removes everything this test file created. Payments and bookings go first (no cascade). */
+/** Removes everything this test file created. Proofs, payments and bookings go first (no cascade). */
 export async function cleanup() {
+  if (created.proofs.length > 0) {
+    await admin.storage.from('payment-proofs').remove(created.proofs)
+  }
   if (created.courses.length > 0) {
     const { data: bookings } = await admin.from('bookings').select('id').in('course_id', created.courses)
     const bookingIds = (bookings ?? []).map((b) => b.id)
     if (bookingIds.length > 0) {
+      await admin.from('payment_proofs').delete().in('booking_id', bookingIds)
       await admin.from('payments').delete().in('booking_id', bookingIds)
       await admin.from('bookings').delete().in('id', bookingIds)
     }
