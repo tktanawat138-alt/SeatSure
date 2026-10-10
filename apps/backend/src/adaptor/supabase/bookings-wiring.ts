@@ -1,7 +1,8 @@
 import type { BookingsDeps } from '../http/bookings.routes'
+import { createSupabaseBookingRepository } from './booking-repository'
 import type { SupabaseConfig } from './config'
 
-/** Builds the bookings ports over Supabase. Filled in by the bookings group. */
-export function wireBookings(_config: SupabaseConfig): BookingsDeps {
-  return {}
+/** Builds the bookings ports over Supabase. */
+export function wireBookings(config: SupabaseConfig): BookingsDeps {
+  return { bookingRepository: createSupabaseBookingRepository(config) }
 }

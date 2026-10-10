@@ -52,6 +52,9 @@ export const BookingDto = z.object({
   ),
 })
 
+// A bookings row without joins (GET /bookings/active): course cards and the teacher's student lists.
+export const ActiveBookingDto = BookingDto.omit({ courses: true, payments: true, payment_proofs: true })
+
 export const RosterRowDto = z.object({
   id: z.string(),
   student_name: z.string(),
@@ -161,6 +164,7 @@ export type Envelope<T> =
 
 export type CourseDto = z.infer<typeof CourseDto>
 export type BookingDto = z.infer<typeof BookingDto>
+export type ActiveBookingDto = z.infer<typeof ActiveBookingDto>
 export type RosterRowDto = z.infer<typeof RosterRowDto>
 export type RefundReportDto = z.infer<typeof RefundReportDto>
 export type PaymentSystemDto = z.infer<typeof PaymentSystemDto>
