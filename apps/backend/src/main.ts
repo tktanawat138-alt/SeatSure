@@ -2,7 +2,7 @@ import { z } from 'zod'
 import { createApp } from './app'
 
 try {
-  process.loadEnvFile('.env.local')
+  process.loadEnvFile(new URL('../.env.local', import.meta.url))
 } catch {
   // No file: fall through to the check below, which names what is missing.
 }

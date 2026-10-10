@@ -4,13 +4,13 @@ import { describe, expect, it } from 'vitest'
 
 const SRC = join(import.meta.dirname, '../../src')
 
-// Layer -> modules it must never import. Dependencies point inwards:
-// adaptor -> use-cases -> interfaces -> entities.
-const FRAMEWORKS = ['express', 'cors', '@supabase']
-const FORBIDDEN: Record<string, string[]> = {
-  entities: [...FRAMEWORKS, 'interfaces', 'use-cases', 'adaptor'],
-  interfaces: [...FRAMEWORKS, 'use-cases', 'adaptor'],
-  'use-cases': [...FRAMEWORKS, 'adaptor'],
+// Dependencies point inwards: adaptor -> use-cases -> interfaces -> entities.
+// Packages are matched as bare specifiers, layers as path segments of relative imports.
+const PACKAGES = ['express', 'cors', '@supabase']
+const FORBIDDEN: Record<string, { packages: string[]; layers: string[] }> = {
+  entities: { packages: PACKAGES, layers: ['interfaces', 'use-cases', 'adaptor'] },
+  interfaces: { packages: PACKAGES, layers: ['use-cases', 'adaptor'] },
+  'use-cases': { packages: PACKAGES, layers: ['adaptor'] },
 }
 
 function sources(dir: string): string[] {
@@ -24,20 +24,38 @@ function sources(dir: string): string[] {
   }
 }
 
-function breaks(specifier: string, banned: string[]): boolean {
-  return banned.some((b) =>
-    b.startsWith('@') || !specifier.startsWith('.')
-      ? specifier === b || specifier.startsWith(`${b}/`)
-      : specifier.split('/').includes(b),
-  )
+// from 'x', import 'x', import('x'), require('x')
+const IMPORT = /(?:\bfrom\s*|\bimport\s*\(?\s*|\brequire\s*\(\s*)['"]([^'"]+)['"]/g
+
+function importsOf(source: string): string[] {
+  return [...source.matchAll(IMPORT)].map((m) => m[1] as string)
 }
 
+function breaks(specifier: string, rule: { packages: string[]; layers: string[] }): boolean {
+  if (specifier.startsWith('.')) return specifier.split('/').some((part) => rule.layers.includes(part))
+  return rule.packages.some((p) => specifier === p || specifier.startsWith(`${p}/`))
+}
+
+describe('import scanner', () => {
+  const rule = FORBIDDEN['use-cases']!
+  it.each([
+    ["import express from 'express'", true],
+    ["import 'express'", true],
+    ["const e = require('express')", true],
+    ["const e = await import('@supabase/supabase-js')", true],
+    ["import { a } from '../adaptor/x'", true],
+    ["import { a } from './express-helper'", false],
+    ["import { a } from '../entities/x'", false],
+  ])('%s -> banned: %s', (line, banned) => {
+    expect(importsOf(line).some((i) => breaks(i, rule))).toBe(banned)
+  })
+})
+
 describe('layer boundaries', () => {
-  for (const [layer, banned] of Object.entries(FORBIDDEN)) {
+  for (const [layer, rule] of Object.entries(FORBIDDEN)) {
     it(`${layer} imports nothing from an outer layer or a framework`, () => {
       for (const file of sources(join(SRC, layer))) {
-        const imports = [...readFileSync(file, 'utf8').matchAll(/from\s+['"]([^'"]+)['"]/g)].map((m) => m[1])
-        const bad = imports.filter((i) => breaks(i, banned))
+        const bad = importsOf(readFileSync(file, 'utf8')).filter((i) => breaks(i, rule))
         expect(bad, `${file} breaks the ${layer} boundary`).toEqual([])
       }
     })

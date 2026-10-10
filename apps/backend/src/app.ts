@@ -21,6 +21,12 @@ const errorHandler: ErrorRequestHandler = (err, _req, res, _next) => {
     res.status(400).json(body)
     return
   }
+  const status = err?.status ?? err?.statusCode
+  if (Number.isInteger(status) && status >= 400 && status < 500) {
+    const body: Failure = { success: false, message: typeof err.message === 'string' ? err.message : 'Bad request' }
+    res.status(status).json(body)
+    return
+  }
   console.error('Unhandled error:', err instanceof Error ? err.message : 'unknown')
   const body: Failure = { success: false, message: 'Internal server error' }
   res.status(500).json(body)

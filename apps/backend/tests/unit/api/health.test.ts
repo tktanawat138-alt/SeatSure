@@ -1,6 +1,6 @@
 import request from 'supertest'
 import { describe, expect, it } from 'vitest'
-import { createApp } from '../../src/app'
+import { createApp } from '../../../src/app'
 
 describe('GET /health', () => {
   it('returns 200 with the success envelope', async () => {
@@ -26,5 +26,16 @@ describe('GET /health', () => {
     const bad = await request(app).post('/health').set('Content-Type', 'application/json').send('{oops')
     expect(bad.status).toBe(400)
     expect(bad.body.success).toBe(false)
+  })
+
+  it('keeps the failure envelope and 4xx status for client errors like an oversized body', async () => {
+    const app = createApp({ frontendOrigin: 'http://localhost:5173' })
+    const big = await request(app)
+      .post('/health')
+      .set('Content-Type', 'application/json')
+      .send(JSON.stringify({ pad: 'x'.repeat(200_000) }))
+    expect(big.status).toBe(413)
+    expect(big.body.success).toBe(false)
+    expect(typeof big.body.message).toBe('string')
   })
 })

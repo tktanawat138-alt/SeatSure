@@ -27,11 +27,11 @@ tasks:
       - task: test:e2e
 
   test:unit:
-    desc: Unit tests (no services needed)
-    dir: apps/frontend
+    desc: Unit tests, frontend and backend (no services needed)
     deps: [frontend:install]
     cmds:
-      - npm run test:unit
+      - cd apps/frontend && npm run test:unit
+      - cd apps/backend && npm install --silent && npm run test:unit
 
   test:integration:
     desc: Integration - frontend (stubbed network), backend (real DB), cross-app (/tests)
@@ -52,7 +52,7 @@ tasks:
     dir: apps/backend
     deps: [backend:up]
     cmds:
-      - npm test
+      - npm run test:integration
 
   test:integration:cross:
     desc: Frontend adaptors against the real backend (/tests/integration)
@@ -92,7 +92,12 @@ tasks:
       - task: backend:api:down
       - npm install --silent
       - bash -c 'nohup npm run dev > ../../.backend.log 2>&1 < /dev/null & disown'
-      - echo "api http://localhost:3001 (log .backend.log)"
+      - |
+        for _ in $(seq 1 15); do
+          lsof -ti tcp:3001 >/dev/null 2>&1 && { echo "api http://localhost:3001 (log .backend.log)"; exit 0; }
+          sleep 0.2
+        done
+        echo "WARN: API did not start, see .backend.log"
 
   backend:api:down:
     desc: Stop the Express API
