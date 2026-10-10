@@ -1,5 +1,5 @@
-import type { CourseRosterGateway } from '@/interfaces/course-roster-gateway'
+import type { BookingsGateway } from '@/interfaces/bookings-gateway'
 
-export function createLoadCourseRoster(gateway: CourseRosterGateway) {
-  return (courseId: string) => gateway.load(courseId)
+export function createLoadCourseRoster(gateway: BookingsGateway) {
+  return (courseId: string) => gateway.roster(courseId)
 }

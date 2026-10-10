@@ -1,35 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createConfirmPaymentProof } from '@/use-cases/submit-payment-proof'
-import { createLoadMyBookings } from '@/use-cases/load-my-bookings'
-import { rpc, stubNetwork, table } from './stub-network'
+import { rpc, stubNetwork } from './stub-network'
 
 afterEach(() => vi.unstubAllGlobals())
 
-const booking = (id: string) => ({ id, status: 'held', courses: { title: 'x', price: 100 }, payments: [] })
-
-describe('myBookingsGateway', () => {
-  it('load attaches each proof to its own booking', async () => {
-    stubNetwork(
-      table('bookings', { body: [booking('b1'), booking('b2')] }),
-      table('payment_proofs', { body: [{ id: 'p1', booking_id: 'b2', proof_path: 'u/b2.png' }] }),
-    )
-    const { myBookingsGateway } = await import('@/adaptor/supabase/my-bookings-gateway')
-
-    const bookings = await createLoadMyBookings(myBookingsGateway)()
-
-    expect(bookings.map((b) => b.payment_proofs.length)).toEqual([0, 1])
-  })
-
-  it('load rejects when the bookings request fails', async () => {
-    stubNetwork(
-      table('bookings', { status: 500, body: { message: 'boom' } }),
-      table('payment_proofs', { body: [] }),
-    )
-    const { myBookingsGateway } = await import('@/adaptor/supabase/my-bookings-gateway')
-
-    await expect(createLoadMyBookings(myBookingsGateway)()).rejects.toMatchObject({ message: 'boom' })
-  })
-})
+// myBookingsGateway (supabase) is replaced by the HTTP bookings gateway: tests/integration/bookings-gateway.test.ts.
 
 describe('paymentProofGateway.confirm', () => {
   it('calls confirm_transfer_payment with the booking id', async () => {
