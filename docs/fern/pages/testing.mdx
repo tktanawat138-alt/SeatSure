@@ -46,6 +46,7 @@ frontend, or reuses them when `task up` already runs them (always outside CI). S
 |---|---|
 | `login.spec.ts` | the login form is shown to a visitor |
 | `theme.spec.ts` | light, dark and system theme, no flash, keyboard, reduced motion |
+| `quality-dashboard.spec.ts` | admin opens `คุณภาพระบบ` from the menu and sees the sample-data notice, the four DORA metrics and the defect density table; a parent has no menu item and `/quality` does not render the page |
 | `auth.spec.ts` | parent sign-in lands on the course list, wrong password shows `อีเมลหรือรหัสผ่านไม่ถูกต้อง`, logout, a protected route while signed out shows the login page, a garbled access token is refreshed silently after a reload, garbled access and refresh tokens sign the user out |
 | `booking-payment.spec.ts` | parent2 books a fresh two-seat course from the list, attaches a PNG proof, confirms, sees `ชำระแล้ว` and the receipt with its `RC-` number; parent3 confirms after parent4 took the last seat and sees `คอร์สนี้เต็มแล้ว` |
 | `course-lifecycle.spec.ts` | teacher1 submits a course through the form, it is pending and hidden from parents, admin@ has no approval queue, admin01 approves it (`อนุมัติคอร์สแล้ว`) and parent1 then sees it; admin cancels a course with a paid booking and sees `เพิ่มรายการคืนเงิน 1 รายการ` |

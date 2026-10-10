@@ -19,6 +19,8 @@ import { createUpdateCourse } from '@/use-cases/update-course'
 import { createLoadPaymentSystem } from '@/use-cases/load-payment-system'
 import { createConfirmPaymentProof, createSubmitPaymentProof } from '@/use-cases/submit-payment-proof'
 import { createUpdateCourseSchedule } from '@/use-cases/update-course-schedule'
+import { sampleQualityMetricsGateway } from '@/adaptor/sample/quality-metrics-gateway'
+import { createLoadQualityDashboard } from '@/use-cases/load-quality-dashboard'
 
 export const submitPaymentProof = createSubmitPaymentProof(paymentsGateway)
 export const confirmPaymentProof = createConfirmPaymentProof(paymentsGateway)
@@ -34,6 +36,7 @@ export const createCourse = createCreateCourse(coursesGateway)
 export const updateCourse = createUpdateCourse(coursesGateway)
 export const reviewCourse = createReviewCourse(coursesGateway)
 export const cancelCourse = createCancelCourse(coursesGateway)
+export const loadQualityDashboard = createLoadQualityDashboard(sampleQualityMetricsGateway)
 
 export const signIn = createSignIn(authGateway)
 export const signOut = createSignOut(authGateway)

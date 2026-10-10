@@ -18,11 +18,13 @@ Workers โดยข้อมูลการชำระเงินเป็น
 
 2. สถานะ test ใน repository ปัจจุบัน
 สิ่งที่มีอยู่แล้ว:
-- Unit: apps/frontend/tests/unit/ ตรวจรูปแบบ UI และกติกาแบ่ง layer
+- Unit: apps/frontend/tests/unit/ ตรวจรูปแบบ UI, กติกาแบ่ง layer และกติกาคำนวณ
+  ตัวชี้วัดคุณภาพ (หัวข้อ 9)
 - Integration (backend): apps/backend/tests/integration/ ตรวจ overbooking, การจ่ายด้วยสลิปโอน และ RLS/security
 - Integration (frontend): apps/frontend/tests/integration/ ตรวจ adaptor ผ่าน network จำลอง
 - Integration (ข้าม app): tests/integration/ ตรวจ adaptor ของ frontend กับ backend จริง
-- E2E: tests/e2e/login.spec.ts ตรวจฟอร์ม login ด้วย Playwright
+- E2E: tests/e2e/ ตรวจ login, auth, การจองและชำระเงิน, วงจรคอร์ส, ธีม และหน้า
+  คุณภาพระบบด้วย Playwright
 - Taskfile มี task test:unit, task test:integration, task test:e2e และ task test
 - CI: .github/workflows/ci.yml รัน unit, integration, E2E และ SonarQube scan
   เมื่อ push เข้า main หรือเปิด PR (SonarQube ต้องตั้ง secret SONAR_TOKEN ก่อน)
@@ -30,7 +32,7 @@ Workers โดยข้อมูลการชำระเงินเป็น
 สิ่งที่ยังเป็นแผนและต้องพัฒนาก่อนจึงจะรันได้:
 - E2E แบบ Page Object Model สำหรับ workflow จริงของ parent/teacher/admin
 - Load test scripts สำหรับ k6 หรือ JMeter
-- Security scan ที่ทำงานใน CI และ DAST scan
+- Dependency/secret scan ที่ทำงานใน CI และ DAST scan (ใน CI มี SonarQube scan แล้ว)
 การมีแผนในเอกสารนี้ไม่ได้หมายความว่าสคริปต์เหล่านี้ถูกสร้างหรือผ่านการทดสอบแล้ว
 
 3. เตรียมสภาพแวดล้อมทดสอบ
@@ -117,8 +119,9 @@ Core workflow B - แก้ตารางและยกเลิกคอร�
   สำหรับ fallback polling และควรเร็วกว่านั้นเมื่อ Realtime ทำงาน)
 - เก็บ Playwright trace เมื่อ retry/failure เพื่อใช้วิเคราะห์
 
-หมายเหตุ: ปัจจุบันยังมีเพียง E2E หน้า login ต้องเขียน specs/fixtures/POM เพิ่ม
-ก่อนจะถือว่า workflow A/B เป็น automation ที่ใช้งานได้จริง
+หมายเหตุ: ปัจจุบัน tests/e2e/ มี spec ของ login, auth, booking-payment,
+course-lifecycle, theme และ quality-dashboard ให้เทียบกับ workflow A/B ข้างต้นว่า
+ครอบคลุมขั้นใดแล้ว ก่อนจะถือว่าเป็น automation ที่ครบตามแผนนี้
 
 6. Non-Functional: Load/Performance Test
 เป้าหมาย:
@@ -193,21 +196,126 @@ D. Soak (ภายหลัง): workload ต่ำต่อเนื่อง 3
 5. รัน k6 baseline บน staging ก่อน release ใหญ่ และเก็บผลเทียบรอบก่อน
 
 9. Quality Metrics Dashboard
-ขณะนี้ repository มี CI workflow แล้ว (.github/workflows/ci.yml) แต่ยังไม่มี
-dashboard สำหรับ quality metrics
-ให้ทำ dashboard สำหรับทีมพัฒนา/ผู้ประเมิน ไม่ใช่หน้าหนึ่งในแอป SeatSure
-dashboard ต้องแสดงแนวโน้มตาม commit/build และ link ไปยังรายละเอียด test report
+Dashboard คือหน้า "คุณภาพระบบ" ในแอป SeatSure (เมนู "คุณภาพระบบ", route /quality)
+เปิดได้เฉพาะ admin ใช้รายงานผู้บริหารด้วยตัวชี้วัดสองกลุ่ม:
+- DORA Metrics 4 ตัว บอกว่าทีมส่งมอบการเปลี่ยนแปลงได้เร็วและเสถียรแค่ไหน
+- Defect Density บอกว่า defect กระจุกอยู่ที่โมดูลใดเมื่อเทียบกับขนาดโค้ด
+ตัวเลขทุกตัวในหน้านี้เป็นข้อมูลตัวอย่าง (sample data) เพื่อสาธิตรูปแบบรายงาน
+ยังไม่ได้ดึงจากระบบจริง และหน้าจอแจ้งเรื่องนี้ไว้ที่ส่วนบนสุด
 
-รูปแบบเริ่มต้นที่แนะนำ:
-- GitHub Actions รัน test/scan เมื่อเปิด PR และเมื่อ merge เข้า main
-- สร้างไฟล์ผลสรุป `quality-metrics.json` จากผลของแต่ละ tool
-- เก็บ Playwright HTML report, trace, test logs และ k6 summary เป็น CI artifacts
-- แสดง summary ใน GitHub Actions Summary ก่อน แล้วค่อยทำหน้า static dashboard
-  (เช่น GitHub Pages) เมื่อมี CI และ repository พร้อมใช้งาน
-- อย่า commit ผล test แบบเปลี่ยนทุกครั้งลง source tree และอย่าใส่ credentials
-  หรือข้อมูลผู้ใช้จริงใน artifacts
+เหตุผลที่ใช้ข้อมูลตัวอย่าง:
+ประวัติจริงของโครงการยังน้อยเกินกว่าจะแสดงแนวโน้ม ณ วันที่ 10 ตุลาคม 2569 CI เพิ่ง
+รัน 5 ครั้งและทั้งหมดอยู่ในวันเดียว ยังไม่มี issue ประเภท bug และการ deploy ยังทำ
+ด้วยมือ ค่าจริงค่าเดียวที่ใช้คือขนาดโค้ดจาก SonarQube Cloud 4,750 บรรทัด หรือ
+4.75 KLOC (1 KLOC = โค้ด 1,000 บรรทัด) ซึ่งนับเฉพาะ apps/frontend/src ที่ CI สแกน
+ไม่รวม SQL migrations และ scripts ฝั่ง backend ขนาดโมดูลในข้อมูลตัวอย่างรวมกันได้
+เท่ากับค่านี้ ข้อมูลตัวอย่างครอบคลุม 12 สัปดาห์ (20 กรกฎาคม - 11 ตุลาคม 2569)
+และเป็นค่าคงที่ เปิดกี่ครั้งก็ได้ตัวเลขเดิม
 
-ตัวชี้วัดบน dashboard:
+สิ่งที่หน้าแสดง เรียงจากบนลงล่าง:
+1. หัวเรื่อง "คุณภาพระบบ" และข้อความแจ้งว่าเป็นข้อมูลตัวอย่าง พร้อมช่วงเวลาที่แสดง
+2. การ์ด DORA 4 ใบ แต่ละใบมีค่า ระดับ (Elite/High/Medium/Low) และทิศทาง
+3. กราฟแนวโน้มรายสัปดาห์ของ DORA ทั้ง 4 ตัว
+4. Defect Density รายโมดูล เป็นกราฟแท่งและตาราง พร้อมค่ารวมทั้งระบบ
+5. ตารางแหล่งข้อมูล: เมื่อใช้ข้อมูลจริง ตัวชี้วัดแต่ละตัวมาจากที่ใดและคำนวณอย่างไร
+
+DORA Metrics:
+DORA (DevOps Research and Assessment) คือชุดตัวชี้วัด 4 ตัวสำหรับวัดการส่งมอบ
+ซอฟต์แวร์ สองตัวแรกวัดความเร็ว สองตัวหลังวัดความเสถียร
+1. Deployment Frequency: ทีมนำระบบขึ้นใช้งาน (deploy) บ่อยแค่ไหน
+   หน่วยเป็นครั้งต่อสัปดาห์ ยิ่งมากยิ่งดี
+2. Lead Time for Changes: เวลาตั้งแต่แก้โค้ดจนการแก้นั้นขึ้นใช้งาน
+   ใช้ค่ามัธยฐาน (ค่ากลางเมื่อเรียงข้อมูล) หน่วยเป็นชั่วโมง ยิ่งน้อยยิ่งดี
+3. Change Failure Rate: สัดส่วนการ deploy ที่ทำให้เกิดปัญหา
+   = deploy ที่เกิดปัญหา / deploy ทั้งหมด * 100 ยิ่งน้อยยิ่งดี
+4. Time to Restore: เวลาที่ใช้กู้ระบบเมื่อ deploy แล้วเกิดปัญหา
+   ใช้ค่ามัธยฐาน หน่วยเป็นนาที ยิ่งน้อยยิ่งดี
+
+เกณฑ์ระดับ ปรับจากรายงาน State of DevOps ปี 2023 โดยกำหนดเป็นเส้นแบ่งตัวเลข
+เพื่อให้จัดระดับจากข้อมูลได้:
+  Deployment Frequency (ครั้งต่อสัปดาห์)
+    Elite   7 ขึ้นไป (เฉลี่ยอย่างน้อยวันละครั้ง)
+    High    1 ขึ้นไป แต่ไม่ถึง 7 (อย่างน้อยสัปดาห์ละครั้ง)
+    Medium  0.25 ขึ้นไป แต่ไม่ถึง 1 (อย่างน้อย 4 สัปดาห์ครั้ง)
+    Low     ต่ำกว่า 0.25
+  Lead Time for Changes (ชั่วโมง)
+    Elite   ต่ำกว่า 24 (ไม่ถึง 1 วัน)
+    High    24 ขึ้นไป แต่ต่ำกว่า 168 (ไม่ถึง 7 วัน)
+    Medium  168 ขึ้นไป แต่ต่ำกว่า 720 (ไม่ถึง 30 วัน)
+    Low     720 ขึ้นไป
+  Change Failure Rate (%)
+    Elite   ไม่เกิน 5
+    High    เกิน 5 แต่ไม่เกิน 10
+    Medium  เกิน 10 แต่ไม่เกิน 15
+    Low     เกิน 15
+  Time to Restore (นาที)
+    Elite   ต่ำกว่า 60 (ไม่ถึง 1 ชั่วโมง)
+    High    60 ขึ้นไป แต่ต่ำกว่า 1,440 (ไม่ถึง 1 วัน)
+    Medium  1,440 ขึ้นไป แต่ต่ำกว่า 10,080 (ไม่ถึง 7 วัน)
+    Low     10,080 ขึ้นไป
+
+วิธีอ่านการ์ด: ช่วง 12 สัปดาห์ถูกแบ่งเป็นสองครึ่ง ค่าบนการ์ดคือค่าของ 6 สัปดาห์หลัง
+ทิศทาง (ดีขึ้น/แย่ลง/คงที่) คือการเทียบกับ 6 สัปดาห์แรก โดยถือว่าคงที่เมื่อเปลี่ยน
+ไม่ถึง 5% ตัวชี้วัดที่ไม่มีข้อมูลแสดง N/A และไม่มีระดับ ไม่แสดงเป็น 0 ส่วน
+Change Failure Rate 0% หมายถึงมี deploy แต่ไม่มีครั้งใดเกิดปัญหา จึงเป็นค่าที่วัดได้
+ไม่ใช่ N/A
+
+Defect Density:
+Defect Density คือจำนวน defect ต่อโค้ด 1,000 บรรทัด ใช้เทียบโมดูลที่ขนาดต่างกัน
+  Defect Density = จำนวน defect / ขนาดโค้ดเป็น KLOC
+คำนวณทั้งรายโมดูลและรวมทั้งระบบ แล้วจัดสถานะตามเป้าหมาย:
+  ok    ไม่เกิน 1.0 (หน้าจอแสดง "อยู่ในเกณฑ์")
+  warn  เกิน 1.0 แต่ไม่เกิน 2.0 (หน้าจอแสดง "เฝ้าระวัง")
+  bad   เกิน 2.0 (หน้าจอแสดง "เกินเกณฑ์")
+เป้าหมาย ok/warn/bad นี้โครงการกำหนดเอง ไม่ใช่เกณฑ์มาตรฐานจากภายนอก
+โมดูลที่ขนาดโค้ดเป็น 0 แสดง N/A
+
+โมดูลในข้อมูลตัวอย่าง (ขนาดรวม 4.75 KLOC):
+  1.20 KLOC  จองที่นั่ง (ผูกกับความเสี่ยง R1)
+  1.35 KLOC  ชำระเงิน (ผูกกับความเสี่ยง R2)
+  0.95 KLOC  สิทธิ์เข้าถึง
+  1.25 KLOC  จัดการคอร์ส
+R1 คือความเสี่ยงจองเกินจำนวนที่รับ R2 คือความเสี่ยงจองซ้ำ เก็บเงินซ้ำ หรือจ่ายแล้ว
+ไม่ได้ที่นั่ง
+
+ข้อมูลตัวอย่างเล่าเรื่องเดียวเพื่อให้เห็นวิธีอ่านรายงาน: การส่งมอบดีขึ้นตลอดช่วง
+(deploy ถี่ขึ้น lead time สั้นลง ล้มเหลวน้อยลง) และโมดูลชำระเงินมี Defect Density
+สูงสุด เรื่องนี้ไม่ใช่ผลการวัดระบบจริง
+
+แหล่งข้อมูลเมื่อเชื่อมต่อระบบจริง:
+  Deployment Frequency
+    แหล่งข้อมูล: GitHub Actions, run ที่ deploy ขึ้น production สำเร็จ
+    วิธีคำนวณ: นับจำนวนครั้งต่อสัปดาห์
+  Lead Time for Changes
+    แหล่งข้อมูล: GitHub, เวลา commit แรกของ pull request ถึงเวลา deploy สำเร็จ
+    วิธีคำนวณ: ค่ามัธยฐาน
+  Change Failure Rate
+    แหล่งข้อมูล: GitHub Issues ที่ติด label `incident` ผูกกับการ deploy
+    วิธีคำนวณ: จำนวน deploy ที่เกิดปัญหา / deploy ทั้งหมด
+  Time to Restore
+    แหล่งข้อมูล: GitHub Issues ที่ติด label `incident`, เวลาเปิดถึงเวลาปิด
+    วิธีคำนวณ: ค่ามัธยฐาน
+  Defect Density
+    แหล่งข้อมูล: GitHub Issues ที่ติด label `bug` แยกตาม label โมดูล และขนาดโค้ด
+    (ncloc) จาก SonarQube
+    วิธีคำนวณ: จำนวน defect / KLOC
+แหล่งข้อมูลเหล่านี้ใช้ได้เมื่อการ deploy ทำผ่าน GitHub Actions และ issue ติด label
+ตามข้างต้น ซึ่งปัจจุบันยังไม่เป็นเช่นนั้น เมื่อเชื่อมแล้วจะเปลี่ยนเฉพาะส่วนที่อ่านข้อมูล
+กติกาคำนวณและหน้าจอใช้ของเดิม
+
+การทดสอบของหน้านี้ (เอกสารนี้ไม่ได้บันทึกผลการรัน):
+- Unit: apps/frontend/tests/unit/entities/quality-metrics.test.ts ตรวจกติกา
+  คำนวณ ได้แก่ ระดับที่ทุกเส้นแบ่ง ค่ามัธยฐาน ทิศทาง N/A และ Defect Density
+- Unit: apps/frontend/tests/unit/use-cases/load-quality-dashboard.test.ts ตรวจ
+  การโหลดข้อมูลผ่าน gateway จำลอง
+- E2E: tests/e2e/quality-dashboard.spec.ts เข้าด้วยบัญชี admin
+  เปิดหน้าจากเมนู ตรวจชื่อตัวชี้วัดทั้ง 4 ข้อความแจ้งข้อมูลตัวอย่าง และตาราง
+  Defect Density และตรวจว่าผู้ปกครองไม่เห็นเมนูและเปิดหน้า /quality ไม่ได้
+
+ขั้นถัดไป: ตัวชี้วัดระดับ CI
+DORA และ Defect Density เป็นภาพรวมสำหรับผู้บริหาร ขั้นถัดไปคือตัวชี้วัดสำหรับ
+ทีมพัฒนา/ผู้ประเมิน แสดงแนวโน้มตาม commit/build และ link ไปยังรายละเอียดใน
+test report ตัวชี้วัดชุดนี้ยังไม่ได้เก็บหรือแสดงผล
 1. Test health
    - จำนวนผ่าน/ล้มเหลว/ถูก skip แยก Unit, Integration, E2E
    - Pass rate = passed / (passed + failed) * 100
@@ -216,7 +324,8 @@ dashboard ต้องแสดงแนวโน้มตาม commit/build �
 2. Coverage ของ workflow
    - workflow ที่มี E2E เทียบกับ workflow หลักที่ตกลงไว้
    - แสดงรายการ workflow A/B ในหัวข้อ 5 พร้อมสถานะ Not started/In progress/Passing
-   - ไม่ใช้ line coverage เป็นตัวแทนว่าทดสอบ business flow ครบแล้ว
+   - แสดง coverage ตาม workflow/requirement ไม่ใช้ line coverage หรือเปอร์เซ็นต์
+     รวมเป็นตัวแทนว่าทดสอบ business flow ครบแล้ว
 3. Performance (แสดงเมื่อมี k6/JMeter result)
    - p50/p95/p99 latency, throughput, error rate และจำนวน virtual users
    - เทียบกับ baseline และ threshold ที่กำหนดในหัวข้อ 6
@@ -230,31 +339,39 @@ dashboard ต้องแสดงแนวโน้มตาม commit/build �
    - PASS ได้เมื่อ required tests ผ่านและไม่มี Critical/High ที่ยังไม่ triage
    - metrics ที่ไม่มีข้อมูลให้แสดง N/A ห้ามแสดงเป็น 0 หรือ PASS
 
-ไฟล์ผลลัพธ์มาตรฐานที่ควรกำหนดเมื่อเริ่มทำ CI:
+ลำดับการเก็บและแสดงผลตัวชี้วัดระดับ CI:
+1. ทำแล้ว: GitHub Actions รัน unit, integration, E2E และ SonarQube scan เมื่อ push
+   เข้า main และทุก pull request บน local Supabase/test data ไม่ยิง test ไป Cloud
+   production และเก็บ Playwright HTML report กับ trace (เมื่อมี retry) เป็น
+   artifact 14 วัน
+2. ให้แต่ละ suite ส่งออกผล machine-readable แล้วรวมเป็น `quality-metrics.json`
+3. เก็บ test logs และ k6 summary เป็น artifacts เพิ่ม ตั้ง retention และใส่
+   commit SHA เพื่อ trace กลับได้
+4. แสดงสรุปใน PR/GitHub Actions Summary ก่อน
+5. หลังเก็บผลได้ต่อเนื่อง ค่อยสร้าง trend chart บน GitHub Pages หรือเชื่อม Grafana
+   (Grafana เหมาะเมื่อมีผล performance ต่อเนื่องและมี time-series storage)
+6. ทบทวน threshold หลังมี baseline อย่างน้อยหลายรอบ อย่าตั้ง threshold จากการเดา
+
+field มาตรฐานของ `quality-metrics.json`:
   generated_at, commit_sha, branch, environment,
   test_suite, passed, failed, skipped, duration_seconds,
   performance_p95_ms, performance_error_rate, virtual_users,
   security_critical, security_high, security_medium, security_low
 ทุก field ที่ไม่เกี่ยวกับ run นั้นให้เป็น null/N/A และเก็บ raw report ไว้เป็น artifact
 
-ขั้นตอนทำงาน:
-1. เพิ่ม GitHub Actions workflow ให้รัน unit, integration และ E2E บน local
-   Supabase/test data; เริ่มจาก PR ไม่ยิง test ไป Cloud production
-2. ให้แต่ละ suite ส่งออกผล machine-readable และรวมเป็น quality-metrics.json
-3. ตั้ง retention ของ artifacts และใส่ commit SHA เพื่อ trace กลับได้
-4. เพิ่ม dashboard summary ใน PR/Actions Summary ก่อน
-5. หลังเก็บผลได้ต่อเนื่อง ค่อยสร้าง trend chart บน GitHub Pages หรือเชื่อม Grafana
-   (Grafana เหมาะเมื่อมีผล performance ต่อเนื่องและมี time-series storage)
-6. ทบทวน threshold หลังมี baseline อย่างน้อยหลายรอบ อย่าตั้ง threshold จากการเดา
-
-นิยามการนำเสนอ:
-- Dashboard แสดงสถานะและแนวโน้ม; รายละเอียดกรณี fail อยู่ใน test report/trace
+ข้อกำหนดการเก็บและการนำเสนอ:
+- อย่า commit ผล test แบบเปลี่ยนทุกครั้งลง source tree และอย่าใส่ credentials
+  หรือข้อมูลผู้ใช้จริงใน artifacts
+- แสดงสถานะและแนวโน้ม; รายละเอียดกรณี fail อยู่ใน test report/trace
 - แยก defect ของแอปออกจาก infrastructure/test-environment failure
 - flaky test ต้องขึ้นเตือน ไม่ซ่อนด้วย retry; บันทึกจำนวน retry ไว้เสมอ
-- การเพิ่ม coverage ต้องแสดงตาม workflow/requirement ไม่อ้างเปอร์เซ็นต์รวมอย่างเดียว
 
-สถานะปัจจุบัน: มี GitHub Actions รัน test และ SonarQube scan แล้ว (ขั้นตอนที่ 1)
-ยังไม่มี metrics collector หรือ dashboard ใน repo ส่วนที่เหลือของหัวข้อนี้เป็น
-implementation plan; ต้องทำ report export ก่อนจึงจะมีข้อมูลจริง
+สถานะปัจจุบัน (10 ตุลาคม 2569):
+- มีแล้ว: CI pipeline (.github/workflows/ci.yml) รัน unit, integration, E2E และ
+  SonarQube Cloud scan ทุกครั้งที่ push เข้า main และทุก pull request
+- หน้า "คุณภาพระบบ" แสดง DORA Metrics และ Defect Density จากข้อมูลตัวอย่าง
+  ไม่ใช่ผลการวัดระบบจริง
+- ยังไม่ได้สร้าง: การเก็บข้อมูลจริงอัตโนมัติจาก GitHub และ SonarQube มาแสดงในหน้านี้
+  รวมถึง `quality-metrics.json` และตัวชี้วัดระดับ CI ข้างต้น
 
 จบเอกสาร

@@ -30,16 +30,19 @@ jobs:
           cache-dependency-path: |
             apps/frontend/package-lock.json
             apps/backend/package-lock.json
+      # Both apps first: the frontend build type-checks the backend's contract.ts, which imports zod.
+      - name: Install dependencies
+        run: |
+          npm ci --prefix apps/backend
+          npm ci --prefix apps/frontend
       - name: Frontend unit tests and build
         working-directory: apps/frontend
         run: |
-          npm ci
           npm run test:unit
           npm run build
       - name: Backend typecheck and unit tests (includes the OpenAPI spec freshness check)
         working-directory: apps/backend
         run: |
-          npm ci
           npm run typecheck
           npm run test:unit
 

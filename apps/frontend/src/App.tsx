@@ -1,6 +1,7 @@
+import { lazy, Suspense } from 'react'
 import { Navigate, Route, Routes } from 'react-router'
 import { AppShell } from '@/components/app-shell'
-import { FullPageLoading } from '@/components/page-state'
+import { FullPageLoading, PageLoading } from '@/components/page-state'
 import { useAuth } from '@/lib/auth'
 import AdminPage from '@/pages/AdminPage'
 import CoursesPage from '@/pages/CoursesPage'
@@ -9,6 +10,9 @@ import MyBookingsPage from '@/pages/MyBookingsPage'
 import PaymentsPage from '@/pages/PaymentsPage'
 import ReceiptPage from '@/pages/ReceiptPage'
 import TeacherPage from '@/pages/TeacherPage'
+
+// Loaded on demand: only admins open it, and it brings the chart library with it.
+const QualityPage = lazy(() => import('@/ui/pages/QualityPage'))
 
 export default function App() {
   const { session, profile, loading } = useAuth()
@@ -35,6 +39,16 @@ export default function App() {
         <Route path="/" element={home} />
         {profile.role === 'parent' && <Route path="/bookings" element={<MyBookingsPage />} />}
         {profile.role === 'admin' && <Route path="/payments" element={<PaymentsPage />} />}
+        {profile.role === 'admin' && (
+          <Route
+            path="/quality"
+            element={
+              <Suspense fallback={<PageLoading />}>
+                <QualityPage />
+              </Suspense>
+            }
+          />
+        )}
         <Route path="/receipt/:bookingId" element={<ReceiptPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
