@@ -4,11 +4,10 @@ import type { Endpoint } from './types'
 
 const unauthenticated = { status: 401, code: 'not_authenticated', description: 'Missing, invalid or expired access token.' }
 const forbidden = { status: 403, code: 'forbidden', description: 'Only the admin may read payments.' }
-const badId = { status: 400, code: 'Validation failed', description: 'The booking id in the path is not a UUID.' }
 const bookingNotFound = {
   status: 404,
   code: 'booking_not_found',
-  description: 'No booking with this id belongs to the caller (someone else\'s booking counts as unknown).',
+  description: 'No booking with this id belongs to the caller (someone else\'s booking and a malformed id count as unknown).',
 }
 const notPayable = { status: 400, code: 'booking_not_payable', description: 'The booking is not `held` (cancelled or expired; a paid booking takes no new proof).' }
 
@@ -36,7 +35,6 @@ export const paymentsEndpoints: Endpoint[] = [
     response: null,
     errors: [
       unauthenticated,
-      badId,
       { status: 400, code: 'proof_type_invalid', description: 'The body is not `image/jpeg`, `image/png` or `image/webp`.' },
       { status: 413, code: 'proof_size_exceeded', description: 'The body is larger than 5 MiB.' },
       { status: 400, code: 'payment_proof_required', description: 'The body is empty.' },
@@ -62,7 +60,6 @@ export const paymentsEndpoints: Endpoint[] = [
     response: null,
     errors: [
       unauthenticated,
-      badId,
       bookingNotFound,
       { status: 400, code: 'booking_not_payable', description: 'The booking is cancelled or expired.' },
       { status: 400, code: 'payment_proof_required', description: 'No proof image has been uploaded for the booking.' },

@@ -29,7 +29,10 @@ export function createApiClient({
 
   async function send(method: string, path: string, body: unknown, token: string | null, opts: RequestOptions): Promise<Reply> {
     const headers: Record<string, string> = {}
-    if (body !== undefined) headers['content-type'] = 'application/json'
+    // A Blob (or File) goes as the raw body with its own type; anything else as JSON.
+    const raw = body instanceof Blob
+    if (raw) headers['content-type'] = body.type || 'application/octet-stream'
+    else if (body !== undefined) headers['content-type'] = 'application/json'
     if (token) headers.authorization = `Bearer ${token}`
     const timeout = AbortSignal.timeout(timeoutMs)
     const signal = opts.signal ? AbortSignal.any([opts.signal, timeout]) : timeout
@@ -39,7 +42,7 @@ export function createApiClient({
       response = await fetch(`${baseUrl}${path}`, {
         method,
         headers,
-        body: body === undefined ? undefined : JSON.stringify(body),
+        body: raw ? body : body === undefined ? undefined : JSON.stringify(body),
         signal,
       })
     } catch {

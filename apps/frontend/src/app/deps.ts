@@ -4,8 +4,7 @@ import { supabase } from '@/lib/supabase'
 import { createLoadMe } from '@/use-cases/load-me'
 import { createSignIn } from '@/use-cases/sign-in'
 import { createSignOut } from '@/use-cases/sign-out'
-import { paymentProofGateway } from '@/adaptor/supabase/payment-proof-gateway'
-import { paymentSystemGateway } from '@/adaptor/supabase/payment-system-gateway'
+import { paymentsGateway } from '@/adaptor/http/payments-gateway'
 import { courseRosterGateway } from '@/adaptor/supabase/course-roster-gateway'
 import { createLoadCourseRoster } from '@/use-cases/load-course-roster'
 import { createLoadMyBookings } from '@/use-cases/load-my-bookings'
@@ -20,9 +19,9 @@ import { createLoadPaymentSystem } from '@/use-cases/load-payment-system'
 import { createConfirmPaymentProof, createSubmitPaymentProof } from '@/use-cases/submit-payment-proof'
 import { createUpdateCourseSchedule } from '@/use-cases/update-course-schedule'
 
-export const submitPaymentProof = createSubmitPaymentProof(paymentProofGateway)
-export const confirmPaymentProof = createConfirmPaymentProof(paymentProofGateway)
-export const loadPaymentSystem = createLoadPaymentSystem(paymentSystemGateway)
+export const submitPaymentProof = createSubmitPaymentProof(paymentsGateway)
+export const confirmPaymentProof = createConfirmPaymentProof(paymentsGateway)
+export const loadPaymentSystem = createLoadPaymentSystem(paymentsGateway)
 export const loadCourseRoster = createLoadCourseRoster(courseRosterGateway)
 export const loadMyBookings = createLoadMyBookings(myBookingsGateway)
 export const updateCourseSchedule = createUpdateCourseSchedule(coursesGateway)

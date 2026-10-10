@@ -14,7 +14,12 @@ export interface PaymentsDeps {
   proofStorage: ProofStorage
 }
 
-const BookingParams = z.object({ id: z.uuid() })
+/** A path id that is not a uuid cannot name a booking (same rule as the courses routes). */
+function bookingId(raw: unknown): string {
+  const parsed = z.uuid().safeParse(raw)
+  if (!parsed.success) throw new DomainError('booking_not_found')
+  return parsed.data
+}
 
 // The limit matches MAX_PROOF_BYTES ('5mb' is 5 * 1024 * 1024 bytes). Only these three types are
 // read; any other body stays unparsed and the use case answers proof_type_invalid.
@@ -35,7 +40,7 @@ export function paymentsRoutes(deps: PaymentsDeps, requireAuth: RequireAuth): Ro
   const router = Router()
 
   const submitProof: RequestHandler = async (req, res) => {
-    const { id } = BookingParams.parse(req.params)
+    const id = bookingId(req.params.id)
     const bytes = Buffer.isBuffer(req.body) ? req.body : Buffer.alloc(0)
     const contentType = req.get('content-type')?.split(';')[0]?.trim().toLowerCase() ?? ''
     await payments.submitProof(actorOf(req), id, { contentType, bytes })
@@ -44,7 +49,7 @@ export function paymentsRoutes(deps: PaymentsDeps, requireAuth: RequireAuth): Ro
   router.put('/bookings/:id/proof', requireAuth(), proofBody, submitProof, proofTooLarge)
 
   router.post('/bookings/:id/confirm-payment', requireAuth(), async (req, res) => {
-    const { id } = BookingParams.parse(req.params)
+    const id = bookingId(req.params.id)
     await payments.confirmPayment(actorOf(req), id)
     res.json(done)
   })

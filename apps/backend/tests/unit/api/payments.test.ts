@@ -74,11 +74,12 @@ describe('PUT /bookings/:id/proof', () => {
     expect(fake.proofStorage.uploads).toHaveLength(0)
   })
 
-  it('a booking id that is not a uuid returns 400 Validation failed', async () => {
-    const { app } = setup()
+  it('a booking id that is not a uuid returns 404 booking_not_found', async () => {
+    const { app, fake } = setup()
     const res = await putProof(app, Buffer.alloc(10), 'image/png', 'u-parent', 'nope')
-    expect(res.status).toBe(400)
-    expect(res.body.message).toBe('Validation failed')
+    expect(res.status).toBe(404)
+    expect(res.body).toEqual({ success: false, message: 'booking_not_found' })
+    expect(fake.proofStorage.uploads).toHaveLength(0)
   })
 
   it('without a token returns 401 not_authenticated', async () => {
@@ -106,6 +107,13 @@ describe('POST /bookings/:id/confirm-payment', () => {
     const res = await request(app).post(`/bookings/${BOOKING}/confirm-payment`).set(bearer('u-parent'))
     expect(res.status).toBe(400)
     expect(res.body).toEqual({ success: false, message: 'payment_proof_required' })
+  })
+
+  it('a booking id that is not a uuid returns 404 booking_not_found', async () => {
+    const { app } = setup()
+    const res = await request(app).post('/bookings/nope/confirm-payment').set(bearer('u-parent'))
+    expect(res.status).toBe(404)
+    expect(res.body.message).toBe('booking_not_found')
   })
 
   it('by another user returns 404 booking_not_found', async () => {
