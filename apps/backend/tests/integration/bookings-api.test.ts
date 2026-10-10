@@ -166,16 +166,30 @@ describe('reading bookings against real Supabase', () => {
     expect(res.body).toEqual({ success: false, message: 'forbidden' })
   })
 
-  it('roster for the course teacher lists every student, proof image URL null', async () => {
+  it('roster for the course teacher: booking rows and student names only (old RLS parity)', async () => {
     const res = await get(teacher, `/courses/${courseId}/roster`)
 
     expect(res.status).toBe(200)
     const roster = RosterRowDto.array().parse(res.body.data)
     expect(roster).toHaveLength(2)
-    const withProof = roster.find((r) => r.id === firstBookingId)!
-    expect(withProof.profiles.full_name).toMatch(/^Test parent/)
-    expect(withProof.payment_proofs).toHaveLength(1)
-    expect(withProof.payment_proofs[0]!.signed_url).toBeNull()
+    for (const row of roster) {
+      expect(row.student_name).toBe('นักเรียนทดสอบ')
+      expect(row.profiles).toEqual({ full_name: '' })
+      expect(row.payments).toEqual([])
+      expect(row.payment_proofs).toEqual([])
+    }
+  })
+
+  it('roster for an admin who is not admin01: parent names and payments, no proofs', async () => {
+    const staff = await createUser('admin')
+
+    const res = await get(staff, `/courses/${courseId}/roster`)
+
+    expect(res.status).toBe(200)
+    const roster = RosterRowDto.array().parse(res.body.data)
+    expect(roster).toHaveLength(2)
+    expect(roster.every((r) => /^Test parent/.test(r.profiles.full_name))).toBe(true)
+    expect(roster.every((r) => r.payment_proofs.length === 0)).toBe(true)
   })
 
   it('roster for admin01 carries a working signed URL of the proof image', async () => {
@@ -185,7 +199,11 @@ describe('reading bookings against real Supabase', () => {
     const res = await get(login.body.data.accessToken, `/courses/${courseId}/roster`)
 
     expect(res.status).toBe(200)
-    const url = RosterRowDto.array().parse(res.body.data).find((r) => r.id === firstBookingId)!.payment_proofs[0]!.signed_url
+    const roster = RosterRowDto.array().parse(res.body.data)
+    expect(roster.find((r) => r.id === firstBookingId)!.profiles.full_name).toMatch(/^Test parent/)
+    const proofs = roster.flatMap((r) => r.payment_proofs)
+    expect(proofs).toHaveLength(1)
+    const url = proofs[0]!.signed_url
     expect(url).toEqual(expect.any(String))
     expect((await fetch(url!)).status).toBe(200)
   })

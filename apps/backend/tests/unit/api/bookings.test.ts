@@ -91,12 +91,20 @@ describe('GET /bookings/:id', () => {
 describe('GET /courses/:id/roster', () => {
   const rows = [bookingRow({ id: 'r1', course_id: COURSE_T1 })]
 
-  it('course teacher -> 200, proof URLs null', async () => {
+  it('course teacher -> 200 with booking rows only (no parent name, payments, proofs)', async () => {
     const { app } = setup(rows.slice())
     const res = await request(app).get(`/courses/${COURSE_T1}/roster`).set(as('teacher'))
     expect(res.status).toBe(200)
     const roster = RosterRowDto.array().parse(res.body.data)
-    expect(roster[0]!.payment_proofs[0]!.signed_url).toBeNull()
+    expect(roster[0]).toMatchObject({ id: 'r1', student_name: 'Mali', profiles: { full_name: '' }, payments: [], payment_proofs: [] })
+  })
+
+  it('admin (not admin01) -> payments but no proofs', async () => {
+    const { app } = setup(rows.slice())
+    const res = await request(app).get(`/courses/${COURSE_T1}/roster`).set(as('admin'))
+    expect(res.status).toBe(200)
+    expect(res.body.data[0].payments).toHaveLength(1)
+    expect(res.body.data[0].payment_proofs).toEqual([])
   })
 
   it('another teacher -> 403 forbidden, no data', async () => {

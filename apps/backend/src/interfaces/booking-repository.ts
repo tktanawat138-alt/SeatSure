@@ -1,4 +1,4 @@
-import type { Booking, BookingRow, RosterRow } from '../entities/booking'
+import type { Booking, BookingRow, RosterAccess, RosterRow } from '../entities/booking'
 
 /** Whose held/paid bookings to list: everyone's, or a user's own plus those of the courses they teach. */
 export type ActiveScope = { all: true } | { userId: string; teacherId?: string }
@@ -18,6 +18,10 @@ export interface BookingRepository {
   listActive(scope: ActiveScope): Promise<BookingRow[]>
   /** The course's teacher id, or undefined when the course does not exist. */
   courseTeacher(courseId: string): Promise<{ teacherId: string | null } | undefined>
-  /** Every booking of the course, oldest first; proof URLs are signed (600 s) only when `signProofs`. */
-  roster(courseId: string, options: { signProofs: boolean }): Promise<RosterRow[]>
+  /**
+   * Every booking of the course, oldest first, holding only what `access` may see: `teacher` gets
+   * `profiles.full_name: ''`, no payments, no proofs; `admin` gets names and payments, no proofs;
+   * `school_admin` also gets proofs with signed URLs (600 s). What is hidden is never fetched.
+   */
+  roster(courseId: string, access: RosterAccess): Promise<RosterRow[]>
 }

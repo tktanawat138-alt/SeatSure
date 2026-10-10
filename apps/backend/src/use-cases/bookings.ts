@@ -1,5 +1,5 @@
 import type { Actor } from '../entities/actor'
-import { canViewProofImages, type Booking, type BookingRow, type RosterRow } from '../entities/booking'
+import { rosterAccess, type Booking, type BookingRow, type RosterRow } from '../entities/booking'
 import { DomainError } from '../entities/domain-error'
 import type { ActiveScope, BookingRepository } from '../interfaces/booking-repository'
 
@@ -16,6 +16,7 @@ export function createBookings(repo: BookingRepository) {
       const studentName = input.studentName.trim()
       if (!studentName) throw new DomainError('student_name_required')
       const id = await repo.bookSeat(actor.token, input.courseId, studentName)
+      // If this read fails the booking still exists and the caller gets a 500; a retry answers already_booked.
       return ownBooking(actor, id)
     },
 
@@ -31,13 +32,13 @@ export function createBookings(repo: BookingRepository) {
       return repo.listActive(scope)
     },
 
-    /** The course teacher or an admin; proof image URLs only for admin01. */
+    /** The course teacher or an admin; each sees what the old RLS showed them (see rosterAccess). */
     async courseRoster(actor: Actor, courseId: string): Promise<RosterRow[]> {
       if (actor.role !== 'admin' && actor.role !== 'teacher') throw new DomainError('forbidden')
       const course = await repo.courseTeacher(courseId)
       if (!course) throw new DomainError('course_not_found')
       if (actor.role === 'teacher' && course.teacherId !== actor.id) throw new DomainError('forbidden')
-      return repo.roster(courseId, { signProofs: canViewProofImages(actor) })
+      return repo.roster(courseId, rosterAccess(actor))
     },
   }
 }

@@ -56,3 +56,13 @@ export const holdsSeat = (booking: Pick<BookingRow, 'status' | 'hold_expires_at'
  */
 export const canViewProofImages = (actor: Pick<Actor, 'role' | 'email'>) =>
   actor.role === 'admin' && actor.email.toLowerCase() === 'admin01@seatsure.test'
+
+/**
+ * How much of a roster a viewer sees, matching the old RLS: a teacher sees booking rows only
+ * (profiles, payments and payment_proofs were "own or admin"), an admin also sees parent names and
+ * payments, and only the school admin (admin01) sees transfer proofs.
+ */
+export type RosterAccess = 'teacher' | 'admin' | 'school_admin'
+
+export const rosterAccess = (actor: Pick<Actor, 'role' | 'email'>): RosterAccess =>
+  canViewProofImages(actor) ? 'school_admin' : actor.role === 'admin' ? 'admin' : 'teacher'

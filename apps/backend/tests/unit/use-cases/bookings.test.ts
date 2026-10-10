@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { canViewProofImages, holdIsLive, holdsSeat } from '../../../src/entities/booking'
+import { canViewProofImages, holdIsLive, holdsSeat, rosterAccess } from '../../../src/entities/booking'
 import { createBookings } from '../../../src/use-cases/bookings'
 import { actor, bookingRow, COURSE_FULL, COURSE_T1, COURSE_T2, fakeBookingRepository } from '../bookings-fake-repository'
 
@@ -31,6 +31,12 @@ describe('booking entity', () => {
     expect(canViewProofImages(actor('admin01'))).toBe(true)
     expect(canViewProofImages(actor('admin'))).toBe(false)
     expect(canViewProofImages({ role: 'teacher', email: 'admin01@seatsure.test' })).toBe(false)
+  })
+
+  it('rosterAccess: teacher -> teacher, admin -> admin, admin01 -> school_admin (old RLS parity)', () => {
+    expect(rosterAccess(actor('teacher'))).toBe('teacher')
+    expect(rosterAccess(actor('admin'))).toBe('admin')
+    expect(rosterAccess(actor('admin01'))).toBe('school_admin')
   })
 })
 
@@ -109,12 +115,12 @@ describe('activeBookings', () => {
 describe('courseRoster', () => {
   const rows = [bookingRow({ id: 'r1', course_id: COURSE_T1 }), bookingRow({ id: 'r2', course_id: COURSE_T2 })]
 
-  it('course teacher gets the roster without proof image URLs', async () => {
+  it('course teacher gets booking rows and student names only: no parent name, payments or proofs', async () => {
     const { repo, bookings } = setup(rows.slice())
     const roster = await bookings.courseRoster(actor('teacher'), COURSE_T1)
     expect(roster.map((r) => r.id)).toEqual(['r1'])
-    expect(roster[0]!.payment_proofs[0]!.signed_url).toBeNull()
-    expect(repo.calls.roster).toEqual([{ courseId: COURSE_T1, signProofs: false }])
+    expect(roster[0]).toMatchObject({ student_name: 'Mali', profiles: { full_name: '' }, payments: [], payment_proofs: [] })
+    expect(repo.calls.roster).toEqual([{ courseId: COURSE_T1, access: 'teacher' }])
   })
 
   it('another teacher -> forbidden, roster never read', async () => {
@@ -128,15 +134,18 @@ describe('courseRoster', () => {
     await expect(bookings.courseRoster(actor('parent'), COURSE_T1)).rejects.toMatchObject({ code: 'forbidden' })
   })
 
-  it('admin other than admin01: roster, proof URLs null', async () => {
+  it('admin other than admin01: parent names and payments, no proofs', async () => {
     const { repo, bookings } = setup(rows.slice())
-    await bookings.courseRoster(actor('admin'), COURSE_T2)
-    expect(repo.calls.roster).toEqual([{ courseId: COURSE_T2, signProofs: false }])
+    const roster = await bookings.courseRoster(actor('admin'), COURSE_T2)
+    expect(repo.calls.roster).toEqual([{ courseId: COURSE_T2, access: 'admin' }])
+    expect(roster[0]).toMatchObject({ profiles: { full_name: 'Parent One' }, payment_proofs: [] })
+    expect(roster[0]!.payments).toHaveLength(1)
   })
 
-  it('admin01: roster with signed proof URLs', async () => {
-    const { bookings } = setup(rows.slice())
+  it('admin01: proofs with signed URLs', async () => {
+    const { repo, bookings } = setup(rows.slice())
     const roster = await bookings.courseRoster(actor('admin01'), COURSE_T2)
+    expect(repo.calls.roster).toEqual([{ courseId: COURSE_T2, access: 'school_admin' }])
     expect(roster[0]!.payment_proofs[0]!.signed_url).toBe('https://signed/r2')
   })
 

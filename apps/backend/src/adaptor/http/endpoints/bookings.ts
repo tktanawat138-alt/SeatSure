@@ -14,7 +14,7 @@ export const bookingsEndpoints: Endpoint[] = [
       'The seat count is checked under a row lock, so concurrent requests for the last seat give exactly one booking and `course_full` to the rest. ' +
       'An account can have one held or paid booking per course: a second request (for example a double-click) answers `already_booked`. ' +
       'Holds that ran out are released first. A transfer booking stays held for 7 days until payment is confirmed. ' +
-      'The student name is trimmed; an empty or blank name answers `student_name_required`.',
+      'The student name is trimmed; an empty or blank `studentName` answers `student_name_required` (the server checks it before the schema\'s non-empty rule, so it is never a `Validation failed`).',
     tag: 'Bookings',
     auth: 'any',
     request: { body: BookSeatBody },
@@ -74,8 +74,10 @@ export const bookingsEndpoints: Endpoint[] = [
     operationId: 'getCourseRoster',
     summary: 'List the students of a course',
     description:
-      'Every booking of the course (any status), oldest first, with the parent\'s name, payments and transfer proofs. Allowed for the course\'s teacher and for admins; another teacher gets `403 forbidden` and no data. ' +
-      'Proof images are private: `signed_url` (valid 600 seconds) is set only for the school admin (`admin01@seatsure.test`), and is `null` for everyone else.',
+      'Every booking of the course (any status), oldest first. Allowed for the course\'s teacher and for admins; another teacher gets `403 forbidden` and no data. ' +
+      'Each viewer sees what the database policies allow them: the teacher gets the booking rows and student names only (`profiles.full_name` is `""`, `payments` and `payment_proofs` are empty); ' +
+      'an admin also gets the parent\'s name and the payments; only the school admin (`admin01@seatsure.test`) also gets the transfer proofs, each with a `signed_url` to the private image valid for 600 seconds. ' +
+      'For any other admin `payment_proofs` is empty.',
     tag: 'Bookings',
     auth: ['teacher', 'admin'],
     response: RosterRowDto.array(),

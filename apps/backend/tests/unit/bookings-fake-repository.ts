@@ -1,7 +1,7 @@
 import type { Actor, Role } from '../../src/entities/actor'
 import { DomainError } from '../../src/entities/domain-error'
 import type { AuthProvider } from '../../src/interfaces/auth-provider'
-import type { Booking, BookingRow, RosterRow } from '../../src/entities/booking'
+import type { Booking, BookingRow, RosterAccess, RosterRow } from '../../src/entities/booking'
 import type { ActiveScope, BookingRepository } from '../../src/interfaces/booking-repository'
 
 export const COURSE_T1 = '11111111-1111-4111-8111-111111111111' // taught by u-teacher
@@ -35,7 +35,7 @@ export const detailed = (row: BookingRow): Booking => ({
 /** In-memory BookingRepository. Records the token and options it was called with. */
 export function fakeBookingRepository(rows: BookingRow[] = []) {
   const courses: Record<string, string | null> = { [COURSE_T1]: 'u-teacher', [COURSE_T2]: 'u-teacher2', [COURSE_FULL]: null }
-  const calls = { bookSeat: [] as { token: string; courseId: string; studentName: string }[], roster: [] as { courseId: string; signProofs: boolean }[] }
+  const calls = { bookSeat: [] as { token: string; courseId: string; studentName: string }[], roster: [] as { courseId: string; access: RosterAccess }[] }
 
   const repo: BookingRepository & { rows: BookingRow[]; calls: typeof calls } = {
     rows,
@@ -64,8 +64,10 @@ export function fakeBookingRepository(rows: BookingRow[] = []) {
     async courseTeacher(courseId) {
       return courseId in courses ? { teacherId: courses[courseId] ?? null } : undefined
     },
-    async roster(courseId, { signProofs }) {
-      calls.roster.push({ courseId, signProofs })
+    // Mirrors the real repository's redaction by access level.
+    async roster(courseId, access) {
+      calls.roster.push({ courseId, access })
+      const teacher = access === 'teacher'
       return rows
         .filter((r) => r.course_id === courseId)
         .map(
@@ -75,11 +77,12 @@ export function fakeBookingRepository(rows: BookingRow[] = []) {
             status: r.status,
             hold_expires_at: r.hold_expires_at,
             created_at: r.created_at,
-            profiles: { full_name: 'Parent One' },
-            payments: [],
-            payment_proofs: [
-              { id: `p-${r.id}`, booking_id: r.id, proof_path: `${r.user_id}/${r.id}.png`, submitted_at: r.created_at, signed_url: signProofs ? `https://signed/${r.id}` : null },
-            ],
+            profiles: { full_name: teacher ? '' : 'Parent One' },
+            payments: teacher ? [] : [{ id: `pay-${r.id}`, amount: 1500, status: 'succeeded', receipt_no: 'RC-1' }],
+            payment_proofs:
+              access === 'school_admin'
+                ? [{ id: `p-${r.id}`, booking_id: r.id, proof_path: `${r.user_id}/${r.id}.png`, submitted_at: r.created_at, signed_url: `https://signed/${r.id}` }]
+                : [],
           }),
         )
     },

@@ -1,5 +1,5 @@
 import { createClient, type PostgrestError } from '@supabase/supabase-js'
-import type { Booking, BookingRow, RosterRow } from '../../entities/booking'
+import type { Booking, BookingRow, RosterAccess, RosterRow } from '../../entities/booking'
 import { DomainError } from '../../entities/domain-error'
 import type { BookingRepository } from '../../interfaces/booking-repository'
 import type { SupabaseConfig } from './config'
@@ -10,7 +10,13 @@ const PROOF_URL_SECONDS = 600
 
 const ROW = 'id, course_id, user_id, student_name, status, hold_expires_at, created_at, paid_at'
 const DETAIL = `${ROW}, courses(title, price), payments(id, booking_id, amount, status, receipt_no, created_at, idempotency_key), payment_proofs(id, booking_id, proof_path, submitted_at)`
-const ROSTER = `id, student_name, status, hold_expires_at, created_at, profiles(full_name), payments(id, amount, status, receipt_no), payment_proofs(id, booking_id, proof_path, submitted_at)`
+// Roster columns per access level (see RosterAccess): a viewer's select never names what they may not see.
+const ROSTER_ROW = 'id, student_name, status, hold_expires_at, created_at'
+const ROSTER: Record<RosterAccess, string> = {
+  teacher: ROSTER_ROW,
+  admin: `${ROSTER_ROW}, profiles(full_name), payments(id, amount, status, receipt_no)`,
+  school_admin: `${ROSTER_ROW}, profiles(full_name), payments(id, amount, status, receipt_no), payment_proofs(id, booking_id, proof_path, submitted_at)`,
+}
 
 /** payment_proofs.booking_id is unique, so PostgREST embeds it as one object (or null): always hand out a list. */
 const asList = <T>(value: T | T[] | null | undefined): T[] => (value == null ? [] : Array.isArray(value) ? value : [value])
@@ -84,15 +90,21 @@ export function createSupabaseBookingRepository(config: SupabaseConfig): Booking
       return data ? { teacherId: (data.teacher_id as string | null) ?? null } : undefined
     },
 
-    async roster(courseId, { signProofs }) {
-      const { data, error } = await service.from('bookings').select(ROSTER).eq('course_id', courseId).order('created_at')
+    async roster(courseId, access) {
+      const { data, error } = await service.from('bookings').select(ROSTER[access]).eq('course_id', courseId).order('created_at')
       if (error) throw failed('roster', error)
-      type Raw = Omit<RosterRow, 'payment_proofs' | 'profiles'> & { profiles: { full_name: string } | null; payment_proofs: unknown }
+      type Raw = Pick<RosterRow, 'id' | 'student_name' | 'status' | 'hold_expires_at' | 'created_at'> & {
+        profiles?: { full_name: string } | null
+        payments?: RosterRow['payments']
+        payment_proofs?: unknown
+      }
+      type Proof = Omit<RosterRow['payment_proofs'][number], 'signed_url'>
       const rows = data as unknown as Raw[]
-      const proofs = rows.flatMap((row) => asList(row.payment_proofs as Omit<RosterRow['payment_proofs'][number], 'signed_url'>[]))
+      const proofs = rows.flatMap((row) => asList(row.payment_proofs as Proof[] | null | undefined))
 
+      // Only school_admin selects proofs, so only school_admin gets them signed.
       const signed = new Map<string, string>()
-      if (signProofs && proofs.length) {
+      if (proofs.length) {
         const { data: urls, error: signError } = await service.storage
           .from('payment-proofs')
           .createSignedUrls(proofs.map((p) => p.proof_path), PROOF_URL_SECONDS)
@@ -101,8 +113,13 @@ export function createSupabaseBookingRepository(config: SupabaseConfig): Booking
       }
 
       return rows.map((row) => ({
-        ...row,
+        id: row.id,
+        student_name: row.student_name,
+        status: row.status,
+        hold_expires_at: row.hold_expires_at,
+        created_at: row.created_at,
         profiles: { full_name: row.profiles?.full_name ?? '' },
+        payments: row.payments ?? [],
         payment_proofs: proofs
           .filter((p) => p.booking_id === row.id)
           .map((p) => ({ ...p, signed_url: signed.get(p.proof_path) ?? null })),
