@@ -166,3 +166,30 @@ tasks:
     desc: Stop the Vite dev server
     cmds:
       - lsof -ti tcp:5173 | xargs kill 2>/dev/null || true
+
+  docs:openapi:
+    desc: Regenerate docs/fern/openapi/openapi.json from the endpoint registry (run after any API change)
+    dir: apps/backend
+    cmds:
+      - npm install --silent
+      - npm run docs:openapi
+
+  docs:check:
+    desc: Validate the Fern project (docs/fern) with fern check
+    dir: docs
+    cmds:
+      - npm install --silent
+      - npx fern-api check
+
+  docs:dev:
+    desc: Preview the docs locally with fern docs dev (http://localhost:3000)
+    dir: docs
+    cmds:
+      - npm install --silent
+      - npx fern-api docs dev
+
+  docs:
+    desc: Regenerate the OpenAPI spec, then validate the docs
+    cmds:
+      - task: docs:openapi
+      - task: docs:check

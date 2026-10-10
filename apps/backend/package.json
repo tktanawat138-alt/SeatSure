@@ -13,6 +13,7 @@
     "dev": "tsx watch src/main.ts",
     "start": "tsx src/main.ts",
     "typecheck": "tsc --noEmit",
+    "docs:openapi": "tsx scripts/gen-openapi.ts",
     "test:unit": "vitest run --project unit",
     "test:integration": "vitest run --project integration",
     "test:ui": "vitest --ui"

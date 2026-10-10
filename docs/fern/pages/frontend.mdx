@@ -1,0 +1,69 @@
+---
+title: Frontend
+description: apps/frontend layers, the shadcn-only and CVA styling rules, and the HTTP adaptor.
+---
+
+React 19, Vite, Tailwind v4 and shadcn/ui (radix-nova), with Thai UI text. It talks only to the backend API; see
+[Architecture](/architecture) for the layer table and import rules.
+
+## Layers in practice
+
+| Where | What |
+|---|---|
+| `src/entities/` | domain types and pure rules (course, my booking, roster, `DomainError`) |
+| `src/interfaces/` | gateway ports such as `AuthGateway` |
+| `src/use-cases/` | one factory per action (`createSignIn`, `createLoadMyBookings`, ...), gateway passed in |
+| `src/adaptor/http/` | `client.ts` (middleware), `session-store.ts`, and one `<area>-gateway.ts` per port |
+| `src/app/deps.ts` | composition root: wires gateways into use cases; pages import use cases from here |
+| `src/pages/`, `src/components/` | pages and feature components (older layout, move into layers when touched) |
+
+Use cases throw `DomainError(code)`; the UI maps codes to Thai messages (`src/lib/format.ts`). A port exists only if there
+is a second implementation (a fake for tests) or the contract may change.
+
+## The HTTP adaptor
+
+- `client.ts` is the only code that calls `fetch`. It adds the bearer token, refreshes once on a 401, shares one refresh
+  between parallel requests, times out after 15 s and converts failures to `DomainError`. Details in [Authentication](/authentication).
+- `session-store.ts` keeps the tokens in `localStorage`, shared across tabs.
+- A gateway implements a port over the client: `client.request<Type>('GET', '/me')`. Types come from `@contract`.
+- The base URL is `VITE_API_URL`, default `http://localhost:3001`.
+
+## shadcn/ui only
+
+- Build every screen from the components in `src/components/ui/`. Do not hand-roll a button, input, dialog, table,
+  select, badge or card.
+- Missing a primitive? `npx shadcn@latest add <name>`. Do not write a lookalike.
+- Feature components (`src/components/<feature>/`) wrap `ui/*`; they never restyle or copy it. Edit a `ui/*` file only to
+  change the design system for the whole app.
+- Theme tokens live in `src/index.css`. No inline hex colors and no other UI library. Icons from `lucide-react`, toasts
+  from `sonner` through `ui/sonner`.
+
+## Styling goes through CVA, never inline in TSX
+
+A component file reads as structure, not a wall of utility classes ([CVA docs](https://cva.style/)).
+
+- No Tailwind class strings in `.tsx`: no `className="flex gap-2"`, no `cn('...')`, no class maps, no `style={{}}`.
+- Every class string lives in a sibling `<name>.styles.ts` built with `cva` (`class-variance-authority`). The TSX only
+  calls it: `className={card({ tone })}`.
+- Tone, size and state become cva `variants` with `defaultVariants`; booleans become variants, not ternaries on class strings.
+- A static element with no variants is still a `cva('...')` so the TSX stays class-free.
+- Export prop types with `VariantProps<typeof x>`.
+- cva does not merge conflicting utilities (no `tailwind-merge`): do not pass a `className` that overrides a utility the
+  style function already sets; add a variant.
+- `ui/*` (shadcn) keeps its own inline `cva`.
+
+```ts
+// status-badge.styles.ts
+export const badge = cva('', {
+  variants: { tone: { ok: 'border-emerald-200 bg-emerald-50 text-emerald-700', muted: 'border-transparent bg-muted' } },
+  defaultVariants: { tone: 'muted' },
+})
+```
+
+```tsx
+// status-badge.tsx
+<Badge variant="outline" className={badge({ tone })}>{children}</Badge>
+```
+
+`apps/frontend/tests/unit/styles.test.ts` fails on a literal `className="..."`, `cn(` or `style={{` in any `.tsx` outside
+`src/components/ui/`; `layering.test.ts` enforces the import rules.

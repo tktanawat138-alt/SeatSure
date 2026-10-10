@@ -1,0 +1,62 @@
+---
+title: Overview
+description: What SeatSure is, who uses it and the main flows.
+---
+
+SeatSure is a small system for booking extra-class courses. It exists to demonstrate a QA plan around one promise:
+**a paid seat is never oversold, never duplicated and never lost.**
+
+| Promise | Risk | What protects it |
+|---|---|---|
+| Not oversold | R1 booking beyond capacity | `book_seat` locks the course row before counting seats |
+| Not duplicated | R2 double booking or double charge | a unique index on bookings and an idempotency key on payments |
+| Not lost | R2 paid but no seat | a payment is recorded together with the seat; if the course was cancelled, the payment is reported as a refund |
+
+Payment is a bank transfer: the parent uploads a proof image and confirms. No money moves through the system.
+
+## Parts
+
+| Part | Where | What it does |
+|---|---|---|
+| Frontend | `apps/frontend` | React app (Thai UI). Talks only to the backend API. |
+| Backend API | `apps/backend` | Express 5 + TypeScript service that owns every business rule. |
+| Database and auth | `apps/backend/supabase` | Supabase Postgres, Auth and Storage: migrations, RLS and the atomic SQL functions. |
+
+See [Architecture](/architecture) for how they fit together.
+
+## Roles
+
+| Role | Can do |
+|---|---|
+| `parent` (parent or student) | See approved courses, book a seat, attach a bank transfer proof, confirm payment, see receipts. |
+| `teacher` | Submit a course (it starts as `pending`), edit the schedule of their own course, see the roster of their own courses. |
+| `admin` | Manage capacity and registration, cancel a course, see the payment overview and the refund report. |
+
+One admin account, `admin01@seatsure.test`, has extra rights: only `admin01` approves or rejects a submitted course and
+views the transfer proof images (`is_school_admin` in the database). Other admins get `admin01_required` for approval and
+see no proof URLs. See [Authentication](/authentication).
+
+## Main flows
+
+**Book a seat.**
+1. A parent opens the course list (approved courses only) and books a seat with a student name. The booking is `held`
+   and holds the seat for 7 days.
+2. The parent uploads a bank transfer proof (jpeg, png or webp, up to 5 MB).
+3. The parent confirms the payment. The booking becomes `paid` and a payment with a receipt number is recorded.
+4. The parent opens the receipt.
+
+A `held` booking whose hold has run out no longer counts as a seat; it is marked `expired` the next time someone books that course.
+
+**Publish a course.** A teacher submits a course, it is `pending` and closed for registration. `admin01` approves it; it then
+opens for registration and appears in the parent course list.
+
+**Cancel a course and refund.** An admin cancels a course with a reason (`cancel_course`). Registration closes, every `held` or
+`paid` booking becomes `cancelled`, and every paid booking's payment is marked `refund_due` and gets a refund report row
+(student, account, amount, receipt, reason). The admin refund report lists them. A cancelled course cannot be reopened.
+
+## Where to read next
+
+- [Running locally](/running-locally) to start everything and sign in.
+- [API reference](/api-reference) for every endpoint (generated from code).
+- [Notes](/notes) for dated decisions and caveats.
+- Design history lives outside this site: `docs/superpowers/specs/` and `docs/superpowers/plans/`.

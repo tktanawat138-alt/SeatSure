@@ -1,0 +1,60 @@
+---
+title: Running locally
+description: Start the stack, sign in with the seeded accounts and know the ports.
+---
+
+## Requirements
+
+- Node.js 20.12 or newer
+- Docker Desktop, running
+- [Supabase CLI](https://supabase.com/docs/guides/cli)
+- [Task](https://taskfile.dev) (the commands below are `task` targets from the root `Taskfile.yml`)
+
+## Commands
+
+| Command | What it does |
+|---|---|
+| `task up` | Starts local Supabase, writes the `.env.local` files, seeds sample data, starts the API and the frontend. The first run downloads Docker images and takes minutes. |
+| `task down` | Stops the frontend, the API and Supabase. |
+| `task test` | Runs every test level. See [Testing](/testing). |
+| `task backend:reset` | Rebuilds the database from migrations and seeds it again. |
+| `task backend:types` | Regenerates the frontend database types after a schema change. |
+| `task docs:dev` | Previews this documentation site locally. |
+
+`task up` is safe to run again. Logs go to `.backend.log` and `.frontend.log` in the repo root.
+
+## Ports
+
+| Service | URL |
+|---|---|
+| Frontend (Vite) | http://localhost:5173 |
+| Backend API (Express) | http://localhost:3001 (`API_PORT`) |
+| Supabase API | http://127.0.0.1:54321 |
+
+The API allows browser calls only from `FRONTEND_ORIGIN` (`http://localhost:5173`). The frontend finds the API through
+`VITE_API_URL` (default `http://localhost:3001`). `task up` writes `apps/frontend/.env.local` and `apps/backend/.env.local`;
+never commit them and never expose the service role key to the browser.
+
+## Seeded accounts
+
+Every account uses the password `seatsure123` (local stack only; seeding a non-local database requires `SEED_PASSWORD`).
+
+| Role | Email |
+|---|---|
+| admin | `admin@seatsure.test` |
+| admin (course approval, proof images) | `admin01@seatsure.test` |
+| teacher | `teacher1@seatsure.test`, `teacher2@seatsure.test` |
+| parent | `parent1@seatsure.test` to `parent10@seatsure.test` |
+
+The seed also creates three sample courses (math, English conversation, a two-seat physics course).
+
+## Try the API by hand
+
+```bash
+curl -s localhost:3001/health
+
+TOKEN=$(curl -s localhost:3001/auth/login -H 'content-type: application/json' \
+  -d '{"email":"parent1@seatsure.test","password":"seatsure123"}' | jq -r .data.accessToken)
+
+curl -s localhost:3001/me -H "authorization: Bearer $TOKEN"
+```

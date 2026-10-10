@@ -2,9 +2,22 @@
 
 ## Layout and commands
 
-- `apps/frontend/` React app, `apps/frontend/src/` and `apps/frontend/tests/` below live here. `apps/backend/` local Supabase (`supabase/` migrations, RLS, RPC) plus `scripts/` (env, seed).
-- `task up` start backend + frontend. `task down` stop both. `task test` run unit, integration, e2e (or `task test:unit` etc.).
+- `apps/frontend/` React app, `apps/frontend/src/` and `apps/frontend/tests/` below live here. `apps/backend/` Express API (`src/`, Clean Architecture; business rules live here, the frontend talks only to it) plus local Supabase (`supabase/` migrations, RLS, RPC) and `scripts/` (env, seed, OpenAPI generator). `docs/` Fern docs project (`docs/fern/`) and dated notes (`docs/notes/`).
+- `task up` start Supabase + API (3001) + frontend (5173). `task down` stop all. `task test` run unit, integration, e2e (or `task test:unit` etc.).
 - Schema changed: `task backend:types`. Rebuild DB: `task backend:reset`.
+- Docs: `task docs:openapi` (regenerate the API spec), `task docs:check` (`fern check`), `task docs:dev` (local preview), `task docs` (openapi + check).
+
+## Docs are the single source of truth
+
+The docs are Fern (`docs/fern/`): guide pages in `docs/fern/pages/*.mdx` and an API reference generated from code.
+`docs/notes/` holds dated notes. Detail lives there; this file only points to it.
+
+- Before starting ANY task, read the relevant pages under `docs/fern/pages/` and the latest notes in `docs/notes/`.
+- After ANY change, update the relevant page, or add a dated note `docs/notes/YYYY-MM-DD-<topic>.md` (what, why, decisions, caveats). List new notes in `docs/fern/pages/notes-index.mdx`.
+- API changes go through the endpoint registry (`apps/backend/src/adaptor/http/endpoints/`) and the zod schemas in `adaptor/http/contract.ts`, then `task docs:openapi`. A stale `docs/fern/openapi/openapi.json` fails `apps/backend/tests/unit/openapi.test.ts`. Never edit that JSON by hand.
+- Docs and the regenerated spec are part of the definition of done. `task docs:check` must pass.
+- If code and docs disagree, fix whichever is wrong in the same change.
+- Design history stays in `docs/superpowers/{specs,plans}`; link it, do not copy it.
 
 React 19 + Vite + Tailwind v4 + shadcn/ui (radix-nova) on Supabase. Architecture and tests follow the
 GS Battery SOP, AI Engineering section 7.2 (Clean Architecture), adapted to TypeScript:
@@ -76,11 +89,12 @@ Dependencies point inwards. A layer may import only the layers listed in "May im
 | Entities | `apps/frontend/src/entities/` | domain types, pure rules (`holdIsLive`, `bookingStatus`), `DomainError` | nothing |
 | Interfaces | `apps/frontend/src/interfaces/` | ports: types the use cases need (`CourseRepository`, `BookingGateway`) | entities |
 | Use cases | `apps/frontend/src/use-cases/` | app logic, one function/class per action (`bookSeat`, `payBooking`), ports passed in | entities, interfaces |
-| Adaptor | `apps/frontend/src/adaptor/<system>/` | implements ports: `supabase/` queries and RPC calls, `format/` | entities, interfaces |
+| Adaptor | `apps/frontend/src/adaptor/<system>/` | implements ports: `http/` (API client middleware, session store, gateways), `format/`. `supabase/` is legacy and goes away with supabase-js | entities, interfaces |
 | UI | `apps/frontend/src/ui/` (pages, feature components, hooks) | React; calls use cases via hooks | use-cases, entities, `components/ui` |
 | Composition root | `apps/frontend/src/main.tsx`, `apps/frontend/src/app/deps.ts` | the only place that wires adaptor into use cases | everything |
 
-- No `react` or `@supabase/*` in `entities`, `interfaces`, `use-cases`. Supabase calls live only in `adaptor/supabase/`.
+- No `react` or `@supabase/*` in `entities`, `interfaces`, `use-cases`. New data access goes through `adaptor/http/` to the backend API, never to Supabase.
+- Backend (`apps/backend/src/`) uses the same layers: `entities/`, `interfaces/` (ports), `use-cases/`, `adaptor/http/` (routers, guard, contract, endpoint registry) and `adaptor/supabase/`, wired only in `app.ts`/`main.ts`. `entities`, `interfaces`, `use-cases` import no `express` or `@supabase/*` (`apps/backend/tests/unit/layering.test.ts`). Details: `docs/fern/pages/architecture.mdx`, `backend.mdx`.
 - A port exists only if there is a second implementation (a fake for tests) or the contract may change. Otherwise the adaptor is the contract.
 - Use cases throw `DomainError(code)`; the UI maps codes to Thai messages.
 - `apps/frontend/tests/unit/layering.test.ts` enforces the boundaries. Keep it green.
@@ -92,14 +106,14 @@ Dependencies point inwards. A layer may import only the layers listed in "May im
 |---|---|---|---|
 | `apps/frontend/tests/unit/` | Unit | entities, use cases with fake ports. No DB, no network, no React | `task test:unit` |
 | `apps/frontend/tests/integration/` | Integration, one app | real adaptors over a stubbed network (`stub-network.ts`) | `task test:integration:frontend` |
-| `apps/backend/tests/unit/` | Unit | pure script logic. Create only when there is some | |
-| `apps/backend/tests/integration/` | Integration, one app | real local Supabase: RLS, RPC, concurrency | `task test:integration:backend` |
+| `apps/backend/tests/unit/` | Unit | use cases with fake ports, routes via `createApp` + supertest with fakes, guard, layering, OpenAPI spec. No services | `task test:unit` |
+| `apps/backend/tests/integration/` | Integration, one app | the API over HTTP against real local Supabase: RLS, RPC, concurrency | `task test:integration:backend` |
 | `tests/integration/` | Integration, cross-app | frontend adaptors against the real backend: shapes and error codes the UI relies on | `task test:integration:cross` |
 | `tests/e2e/` | E2E | browser through the running app, Playwright is the core service (`tests/playwright.config.ts`) | `task test:e2e` |
 
 - `task test` runs every level. Vitest UI (https://vitest.dev/guide/ui): `task test:ui:frontend`, `task test:ui:backend`, `task test:ui:cross` (`@vitest/ui`, `vitest --ui` in each package). Each folder has its own `package.json`/vitest config.
 - Rule for "integration": inside an app = that app plus one real dependency. At the root = two apps wired together. Do not re-test backend rules at the root; test only the contract the frontend depends on.
-- Mirror the layer: a use case test goes in `apps/frontend/tests/unit/use-cases/`.
+- Mirror the layer: a use case test goes in `apps/frontend/tests/unit/use-cases/` or `apps/backend/tests/unit/use-cases/`.
 - Write the failing test first (TDD), then the code.
 - Name tests `<unit> <scenario> <expected>`. No `sleep`; wait on a condition.
 - Unit and frontend integration tests need no `.env.local`. Backend, cross-app and e2e need `task up` first.

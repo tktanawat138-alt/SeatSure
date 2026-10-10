@@ -1,0 +1,56 @@
+---
+title: Testing
+description: Test levels, commands, Vitest UI and the TDD rules.
+---
+
+Unit and integration tests live inside each app; cross-app integration and e2e live at the root `tests/`.
+
+## Levels
+
+| Where | Level | Scope | Command |
+|---|---|---|---|
+| `apps/frontend/tests/unit/` | Unit | entities, use cases with fake ports, layering and styling rules. No DB, no network, no React | `task test:unit` |
+| `apps/frontend/tests/integration/` | Integration, one app | real adaptors (HTTP client, gateways) over a stubbed network (`stub-network.ts`) | `task test:integration:frontend` |
+| `apps/backend/tests/unit/` | Unit | use cases with fake ports, HTTP routes through `createApp` with fakes (supertest), guard, error handler, layering, the OpenAPI spec | `task test:unit` |
+| `apps/backend/tests/integration/` | Integration, one app | the API over HTTP against real local Supabase: RLS, RPC, concurrency, overbooking, payments | `task test:integration:backend` |
+| `tests/integration/` | Integration, cross-app | frontend gateways against the real backend: shapes and error codes the UI relies on | `task test:integration:cross` |
+| `tests/e2e/` | E2E | the browser through the running app, Playwright (`tests/playwright.config.ts`) | `task test:e2e` |
+
+`task test` runs every level. Unit tests and frontend integration tests need no `.env.local`; backend integration,
+cross-app and e2e need `task up` first.
+
+"Integration" inside an app means that app plus one real dependency. At the root it means two apps wired together. Do not
+re-test backend rules at the root; test only the contract the frontend depends on.
+
+## Vitest UI
+
+[Vitest UI](https://vitest.dev/guide/ui) (`@vitest/ui`) gives a browser view of tests:
+
+| Command | Runs |
+|---|---|
+| `task test:ui:frontend` | frontend unit and integration |
+| `task test:ui:backend` | backend unit and integration (integration needs `task up`) |
+| `task test:ui:cross` | cross-app integration in `/tests` (needs `task up`) |
+
+Each folder has its own `package.json` and vitest config; the backend has two projects, `unit` and `integration`.
+
+## Rules
+
+- Write the failing test first (TDD), watch it fail, then write the code.
+- Mirror the layer: a use case test goes in `tests/unit/use-cases/`.
+- Name tests `<unit> <scenario> <expected>`. No `sleep`; wait on a condition.
+- E2E uses Playwright only; specs are named `tests/e2e/<flow>.spec.ts`; locate by role or label, not CSS. The first run
+  installs Chromium.
+
+## Docs tests
+
+`apps/backend/tests/unit/openapi.test.ts` keeps the API reference honest: the generated OpenAPI document must equal the
+committed `docs/fern/openapi/openapi.json` (otherwise run `task docs:openapi`), every route mounted on `createApp` has one
+registry entry and vice versa, operation ids are unique, and every `$ref` resolves.
+
+## Demo of the bug protection
+
+The backend integration tests run in two modes: normal, and `unsafe` (`npm run test:unsafe` in `apps/backend`), which swaps
+the booking and payment SQL functions for check-then-write versions without locking, so the tests prove they would catch
+overbooking and double charging. The repository `README.md` has the table of what fails in unsafe mode and how to switch
+back.
