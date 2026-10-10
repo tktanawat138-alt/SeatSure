@@ -1,6 +1,7 @@
 import { useState, type SubmitEvent } from 'react'
 import { CircleAlert, CreditCard, FlaskConical, ShieldCheck, Users, type LucideIcon } from 'lucide-react'
 import { Logo } from '@/components/logo'
+import { ThemeToggle } from '@/components/theme-toggle'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -130,6 +131,9 @@ export default function LoginPage() {
 
   return (
     <div className={styles.page()}>
+      <div className={styles.themeCorner()}>
+        <ThemeToggle />
+      </div>
       <BrandPanel />
 
       <main className={styles.main()}>

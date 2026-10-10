@@ -67,3 +67,22 @@ export const badge = cva('', {
 
 `apps/frontend/tests/unit/styles.test.ts` fails on a literal `className="..."`, `cn(` or `style={{` in any `.tsx` outside
 `src/components/ui/`; `layering.test.ts` enforces the import rules.
+
+## Theming and motion
+
+- **Choices.** `light`, `dark` or `system` (default). `system` follows `prefers-color-scheme` and reacts when the OS
+  changes. The choice is saved in `localStorage` under `seatsure-theme`; every access is wrapped in try/catch with an
+  in-memory fallback (`src/lib/theme.ts`), so a private window still works for the page view.
+- **How it is applied.** The `dark` class on `<html>` switches the `.dark` token set in `src/index.css`, and
+  `color-scheme` makes native controls and scrollbars follow. A small inline script in `index.html` sets the class before
+  React loads, so there is no flash. `ThemeProvider` and `useTheme()` live in `src/lib/theme-provider.tsx`;
+  `ThemeToggle` (`src/components/theme-toggle.tsx`) sits in the app shell header and on the login page.
+- **Add a themed component the CVA way.** Use semantic tokens first (`bg-card`, `text-muted-foreground`, `border-border`);
+  they already switch with the theme. For a status colour that has no token, pair every raw colour with a `dark:` sibling
+  in the same cva string: `bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300`.
+  `tests/unit/dark-variants.test.ts` fails with the file and string when a pair is missing, and
+  `tests/unit/contrast.test.ts` checks the token pairs against WCAG AA in both themes.
+- **Motion.** Interactive states use `transition` with `duration-200 ease-out`; route content fades in with
+  `animate-in fade-in-0 slide-in-from-bottom-2` (`tw-animate-css`). Every transition or animation you add also carries
+  `motion-reduce:transition-none motion-reduce:duration-0` or `motion-reduce:animate-none`. `index.css` adds a
+  `prefers-reduced-motion` safety net for the animations that ship with shadcn.
