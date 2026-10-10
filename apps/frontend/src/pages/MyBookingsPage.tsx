@@ -160,7 +160,7 @@ function BookingCard({
         {holdIsLive(booking, now) && (
           <div className={styles.payBox()}>
             <div className={styles.transferCard()}>
-              <p className="font-medium">โอน {baht(booking.courses.price)} เข้าบัญชีโรงเรียน (ตัวอย่าง)</p>
+              <p className={styles.transferAmount()}>โอน {baht(booking.courses.price)} เข้าบัญชีโรงเรียน (ตัวอย่าง)</p>
               <p>ธนาคาร: ธนาคารตัวอย่าง</p><p>ชื่อบัญชี: โรงเรียน SeatSure</p><p>เลขที่บัญชี: 123-4-56789-0</p>
               {booking.payment_proofs.length > 0 && <p className={styles.paidProof()}>แนบหลักฐานแล้ว ยังไม่ได้ยืนยันการชำระเงิน</p>}
               <label className={styles.uploadLabel()}>

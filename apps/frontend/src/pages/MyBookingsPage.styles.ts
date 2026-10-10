@@ -15,6 +15,7 @@ export const countdown = cva('flex items-center gap-1.5 text-muted-foreground ta
 export const countdownIcon = cva('size-4 shrink-0')
 export const refundAlert = cva('border-destructive/30 bg-destructive/5')
 export const transferCard = cva('w-full rounded-lg border bg-muted/40 p-3 text-sm sm:max-w-sm')
+export const transferAmount = cva('font-medium')
 export const paidProof = cva('mt-2 text-muted-foreground')
 export const uploadLabel = cva('mt-3 flex cursor-pointer items-center gap-2 font-medium text-primary')
 export const confirmPayment = cva('mt-3 w-full')
