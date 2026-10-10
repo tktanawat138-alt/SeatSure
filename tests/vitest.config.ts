@@ -1,19 +1,21 @@
-import { existsSync, readFileSync } from 'node:fs'
-import { parseEnv } from 'node:util'
 import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'vitest/config'
 
-// Cross-app integration: the frontend's real adaptors against the real local Supabase.
-// Keys come from apps/frontend/.env.local, written by `task up`.
-const envFile = new URL('../apps/frontend/.env.local', import.meta.url)
-const keys = existsSync(envFile) ? parseEnv(readFileSync(envFile, 'utf8')) : {}
-
+// Cross-app integration: the frontend's real HTTP gateways and use cases against the running API
+// (task up). The data arranged or cleaned on the side uses the service key read by
+// e2e/support/env.ts, never the frontend.
 export default defineConfig({
-  resolve: { alias: { '@': fileURLToPath(new URL('../apps/frontend/src', import.meta.url)) } },
+  resolve: {
+    alias: {
+      '@contract': fileURLToPath(new URL('../apps/backend/src/adaptor/http/contract.ts', import.meta.url)),
+      '@': fileURLToPath(new URL('../apps/frontend/src', import.meta.url)),
+    },
+  },
   test: {
     environment: 'node',
     include: ['integration/**/*.test.ts'],
-    env: keys,
+    setupFiles: ['integration/local-storage.ts'],
+    env: { VITE_API_URL: process.env.API_URL ?? 'http://localhost:3001' },
     fileParallelism: false,
     testTimeout: 30_000,
   },
