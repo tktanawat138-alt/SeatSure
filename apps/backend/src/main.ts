@@ -1,6 +1,9 @@
 import { z } from 'zod'
 import { createSupabaseAuthProvider } from './adaptor/supabase/auth-provider'
 import { createApp } from './app'
+import { wireBookings } from './adaptor/supabase/bookings-wiring'
+import { wireCourses } from './adaptor/supabase/courses-wiring'
+import { wirePayments } from './adaptor/supabase/payments-wiring'
 
 try {
   process.loadEnvFile(new URL('../.env.local', import.meta.url))
@@ -24,13 +27,18 @@ if (!parsed.success) {
 }
 const config = parsed.data
 
+const supabase = {
+  url: config.SUPABASE_URL,
+  anonKey: config.SUPABASE_ANON_KEY,
+  serviceRoleKey: config.SUPABASE_SERVICE_ROLE_KEY,
+}
+
 const app = createApp({
   frontendOrigin: config.FRONTEND_ORIGIN,
-  authProvider: createSupabaseAuthProvider({
-    url: config.SUPABASE_URL,
-    anonKey: config.SUPABASE_ANON_KEY,
-    serviceRoleKey: config.SUPABASE_SERVICE_ROLE_KEY,
-  }),
+  authProvider: createSupabaseAuthProvider(supabase),
+  ...wireCourses(supabase),
+  ...wireBookings(supabase),
+  ...wirePayments(supabase),
 })
 app.listen(config.API_PORT, () => {
   console.log(`API listening on http://localhost:${config.API_PORT}`)
