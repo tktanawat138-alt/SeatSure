@@ -137,6 +137,18 @@ apps/frontend/src/adaptor/http/ client.ts session-store.ts *-gateway.ts
 - [ ] Step 3: security review (separate agent): JWT verification path, role checks on every route, upload validation, CORS origin, no secrets in logs or the frontend bundle (`grep` the build for the service key), error messages do not leak SQL. Fix findings with tests.
 - [ ] Step 4: docs updated (AGENTS.md architecture + test table, README commands, TEST_PLAN). Commit.
 
+### Task 10: Fern docs as the single source of truth
+
+**Files:** Create `docs/package.json` (devDependency `fern-api`), `docs/fern/{fern.config.json,generators.yml,docs.yml}`, `docs/fern/openapi/openapi.json` (generated, committed), `docs/fern/pages/*.mdx` (overview, architecture, authentication, api-conventions, frontend, backend, testing, running-locally, notes-index), `docs/notes/` (living dated notes), `apps/backend/scripts/gen-openapi.ts`; Modify root `Taskfile.yml`, `AGENTS.md`, `apps/backend/package.json`; Fill `apps/backend/src/adaptor/http/endpoints/auth.ts` (+ a `/health` entry); Test `apps/backend/tests/unit/openapi.test.ts`.
+**Interfaces:** Consumes the endpoint registry `endpoints` (`adaptor/http/endpoints`, type `Endpoint`) and the zod schemas in `contract.ts`. Produces `buildOpenApi(endpoints): OpenApiDocument` (OpenAPI 3.1; `z.toJSONSchema` for schemas, the `Envelope` wrapper on every success and failure response, bearer security scheme, one tag per group, error codes in the operation description) and `npm run docs:openapi` writing `docs/fern/openapi/openapi.json`.
+
+- [ ] Step 1: failing tests: (a) the generated document equals the committed `openapi.json` (a stale spec fails the test and the message says to run `task docs:openapi`); (b) every route actually mounted on `createApp(...)` (walk the Express router stack) has exactly one registry entry with the same method and path, and every registry entry is mounted; (c) every entry has a non-empty summary, an `operationId` that is unique, and error codes listed; (d) the document validates structurally (openapi/info/paths/components present, every `$ref` resolves).
+- [ ] Step 2: run, expect FAIL.
+- [ ] Step 3: implement `gen-openapi.ts` + auth/health registry entries; add Fern config (`organization: seatsure`, OpenAPI as the API definition, a docs navigation with the guide pages and the API reference); `task docs:openapi`, `task docs:check` (`fern check`), `task docs:dev` (`fern docs dev` in `docs/`), `task docs` (generate + check).
+- [ ] Step 4: write the guide pages from the real code (no invented behaviour): what each app does, Clean Architecture layers and the import rules, authentication flow (login/refresh/logout, middleware, session storage), response envelope and error codes, test levels and commands (including Vitest UI), running locally (`task up/down/test`), and a "Notes" page explaining `docs/notes/`. Existing `docs/superpowers/{specs,plans}` stay where they are and are linked, not copied.
+- [ ] Step 5: `AGENTS.md` gets a "Docs are the source of truth" section: read `docs/` (Fern pages and `docs/notes/`) before starting any task; after any change write or update the relevant page, or add a dated note `docs/notes/YYYY-MM-DD-<topic>.md`; API changes go through the endpoint registry and `task docs:openapi`; docs and the generated spec are part of the definition of done.
+- [ ] Step 6: `fern check` passes (run `npx fern-api check` in `docs/`), tests pass, `fern docs dev` starts (smoke, then stop). Commit.
+
 ## Self-review notes
 
 - Spec coverage: backend layers (T1,T3-6), contract (T2), frontend middleware (T3), polling (T7), page migration + supabase-js removal (T8), test matrix and e2e (every task + T9), cleanup (T1), security review (T9).
