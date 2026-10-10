@@ -32,7 +32,7 @@ description: Start the stack, sign in with the seeded accounts and know the port
 | Supabase API | http://127.0.0.1:54321 |
 
 The API allows browser calls only from `FRONTEND_ORIGIN` (`http://localhost:5173`). The frontend finds the API through
-`VITE_API_URL` (default `http://localhost:3001`). `task up` writes `apps/frontend/.env.local` and `apps/backend/.env.local`;
+`VITE_API_URL` (dev server default `http://localhost:3001`; a production build requires it). `task up` writes `apps/frontend/.env.local` and `apps/backend/.env.local`;
 never commit them and never expose the service role key to the browser.
 
 ## Seeded accounts

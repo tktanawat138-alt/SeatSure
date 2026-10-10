@@ -102,7 +102,17 @@ export function createApiClient({
 
 export type ApiClient = ReturnType<typeof createApiClient>
 
+/**
+ * The API base URL. Only development falls back to the local API; a production build without
+ * VITE_API_URL fails at startup instead of sending credentials to the visitor's own localhost.
+ */
+export function resolveApiBase(env: { DEV: boolean; PROD: boolean; VITE_API_URL?: string }): string {
+  if (env.VITE_API_URL) return env.VITE_API_URL
+  if (env.DEV) return 'http://localhost:3001'
+  throw new Error('VITE_API_URL is not set. Set it to the backend API URL when building for production.')
+}
+
 export const apiClient = createApiClient({
-  baseUrl: import.meta.env.VITE_API_URL || 'http://localhost:3001',
+  baseUrl: resolveApiBase(import.meta.env),
   store: sessionStore,
 })

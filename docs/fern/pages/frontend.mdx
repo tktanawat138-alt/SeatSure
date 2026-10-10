@@ -26,7 +26,7 @@ is a second implementation (a fake for tests) or the contract may change.
   between parallel requests, times out after 15 s and converts failures to `DomainError`. Details in [Authentication](/authentication).
 - `session-store.ts` keeps the tokens in `localStorage`, shared across tabs.
 - A gateway implements a port over the client: `client.request<Type>('GET', '/me')`. Types come from `@contract`.
-- The base URL is `VITE_API_URL`, default `http://localhost:3001`. It is the only variable the browser bundle reads.
+- The base URL is `VITE_API_URL`. Only the dev server falls back to `http://localhost:3001`; a production build without it throws at startup (`resolveApiBase` in `adaptor/http/client.ts`). It is the only variable the browser bundle reads.
 - There is no Supabase client in the frontend: `@supabase/*` is not a dependency and `layering.test.ts` fails on any such
   import under `src/`. Never put a service key in anything bundled.
 

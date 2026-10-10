@@ -141,5 +141,6 @@ const { error: gradeError } = await supabase.from('grades').upsert(
 check(gradeError, 'seed grades')
 
 console.log(`Seeded ${accounts.length} accounts and ${courses.length} courses.`)
-console.log(`Sign in with any of these (password: ${PASSWORD}):`)
+// Only the well-known local password is printed; a custom one never reaches logs or CI output.
+console.log(isLocal ? `Sign in with any of these (password: ${PASSWORD}):` : 'Sign in with any of these (password: SEED_PASSWORD from your env file):')
 for (const account of accounts) console.log(`  ${account.role.padEnd(7)} ${account.email}`)
