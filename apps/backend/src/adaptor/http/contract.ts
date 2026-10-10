@@ -108,6 +108,7 @@ export const Me = z.object({
 
 // Requests.
 export const LoginBody = z.object({ email: nonEmpty, password: nonEmpty })
+export const RefreshBody = z.object({ refreshToken: nonEmpty })
 
 const capacity = z.number().int().min(1)
 const endsAfterStarts = (v: { startsAt: string; endsAt: string }) => Date.parse(v.endsAt) > Date.parse(v.startsAt)
@@ -166,6 +167,7 @@ export type PaymentSystemDto = z.infer<typeof PaymentSystemDto>
 export type Session = z.infer<typeof Session>
 export type Me = z.infer<typeof Me>
 export type LoginBody = z.infer<typeof LoginBody>
+export type RefreshBody = z.infer<typeof RefreshBody>
 export type CreateCourseBody = z.infer<typeof CreateCourseBody>
 export type UpdateCourseBody = z.infer<typeof UpdateCourseBody>
 export type ApprovalBody = z.infer<typeof ApprovalBody>

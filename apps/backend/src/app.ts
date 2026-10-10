@@ -1,38 +1,20 @@
 import cors from 'cors'
-import express, { type ErrorRequestHandler } from 'express'
-import { ZodError } from 'zod'
+import express from 'express'
+import { authRoutes } from './adaptor/http/auth.routes'
+import { errorHandler } from './adaptor/http/error-handler'
+import { createRequireAuth } from './adaptor/http/guard'
+import type { AuthProvider } from './interfaces/auth-provider'
+import { createAuth } from './use-cases/auth'
 
 export interface AppDeps {
   frontendOrigin: string
-}
-
-type Failure = { success: false; message: string; errors?: unknown }
-
-// Every error leaves the API in the same envelope. Validation failures are 400;
-// anything unexpected is a 500 whose detail is logged, never sent.
-const errorHandler: ErrorRequestHandler = (err, _req, res, _next) => {
-  if (err instanceof ZodError) {
-    const body: Failure = { success: false, message: 'Validation failed', errors: err.issues }
-    res.status(400).json(body)
-    return
-  }
-  if (err?.type === 'entity.parse.failed') {
-    const body: Failure = { success: false, message: 'Invalid JSON body' }
-    res.status(400).json(body)
-    return
-  }
-  const status = err?.status ?? err?.statusCode
-  if (Number.isInteger(status) && status >= 400 && status < 500) {
-    const body: Failure = { success: false, message: typeof err.message === 'string' ? err.message : 'Bad request' }
-    res.status(status).json(body)
-    return
-  }
-  console.error('Unhandled error:', err instanceof Error ? err.message : 'unknown')
-  const body: Failure = { success: false, message: 'Internal server error' }
-  res.status(500).json(body)
+  authProvider: AuthProvider
 }
 
 export function createApp(deps: AppDeps): express.Express {
+  const auth = createAuth(deps.authProvider)
+  const requireAuth = createRequireAuth(auth.authenticate)
+
   const app = express()
   app.use(
     cors({
@@ -44,10 +26,10 @@ export function createApp(deps: AppDeps): express.Express {
   app.get('/health', (_req, res) => {
     res.json({ success: true, data: { ok: true } })
   })
+  app.use(authRoutes(auth, requireAuth))
 
   app.use((_req, res) => {
-    const body: Failure = { success: false, message: 'Not found' }
-    res.status(404).json(body)
+    res.status(404).json({ success: false, message: 'Not found' })
   })
   app.use(errorHandler)
   return app

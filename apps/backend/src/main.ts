@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { createSupabaseAuthProvider } from './adaptor/supabase/auth-provider'
 import { createApp } from './app'
 
 try {
@@ -23,7 +24,14 @@ if (!parsed.success) {
 }
 const config = parsed.data
 
-const app = createApp({ frontendOrigin: config.FRONTEND_ORIGIN })
+const app = createApp({
+  frontendOrigin: config.FRONTEND_ORIGIN,
+  authProvider: createSupabaseAuthProvider({
+    url: config.SUPABASE_URL,
+    anonKey: config.SUPABASE_ANON_KEY,
+    serviceRoleKey: config.SUPABASE_SERVICE_ROLE_KEY,
+  }),
+})
 app.listen(config.API_PORT, () => {
   console.log(`API listening on http://localhost:${config.API_PORT}`)
 })
