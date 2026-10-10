@@ -53,6 +53,7 @@ export const paymentsEndpoints: Endpoint[] = [
       '- Only the owner of the booking may confirm. The booking must be `held` and have a stored proof image.',
       '- On success the booking becomes `paid` and exactly one payment is recorded for the course price, with a receipt number `RC-YYYYMMDD-nnnnnn`.',
       '- Idempotent: confirming a booking that is already paid succeeds and charges nothing more, also when several confirms arrive at once.',
+      '- Confirm and course cancellation are serialized on the course: if the course is cancelled first the confirm is refused (`booking_not_payable`, or `course_cancelled`); if the confirm wins, the cancel reports the new payment for refund.',
       '- Card payment is retired; bank transfer with a proof is the only way to pay.',
     ].join('\n'),
     tag: 'Payments',
@@ -63,6 +64,7 @@ export const paymentsEndpoints: Endpoint[] = [
       bookingNotFound,
       { status: 400, code: 'booking_not_payable', description: 'The booking is cancelled or expired.' },
       { status: 400, code: 'payment_proof_required', description: 'No proof image has been uploaded for the booking.' },
+      { status: 400, code: 'course_cancelled', description: 'The course of the booking is cancelled.' },
     ],
   },
   {

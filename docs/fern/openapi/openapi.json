@@ -1272,7 +1272,7 @@
         ],
         "operationId": "confirmPayment",
         "summary": "Confirm the bank transfer",
-        "description": "The parent presses \"confirm payment\" after uploading a proof. No request body.\n\n- Only the owner of the booking may confirm. The booking must be `held` and have a stored proof image.\n- On success the booking becomes `paid` and exactly one payment is recorded for the course price, with a receipt number `RC-YYYYMMDD-nnnnnn`.\n- Idempotent: confirming a booking that is already paid succeeds and charges nothing more, also when several confirms arrive at once.\n- Card payment is retired; bank transfer with a proof is the only way to pay.\n\nRequires a bearer token (any role).\n\nErrors (the `message` of the failure envelope):\n\n- `400` `booking_not_payable`: The booking is cancelled or expired.\n- `400` `payment_proof_required`: No proof image has been uploaded for the booking.\n- `401` `not_authenticated`: Missing, invalid or expired access token.\n- `404` `booking_not_found`: No booking with this id belongs to the caller (someone else's booking and a malformed id count as unknown).",
+        "description": "The parent presses \"confirm payment\" after uploading a proof. No request body.\n\n- Only the owner of the booking may confirm. The booking must be `held` and have a stored proof image.\n- On success the booking becomes `paid` and exactly one payment is recorded for the course price, with a receipt number `RC-YYYYMMDD-nnnnnn`.\n- Idempotent: confirming a booking that is already paid succeeds and charges nothing more, also when several confirms arrive at once.\n- Confirm and course cancellation are serialized on the course: if the course is cancelled first the confirm is refused (`booking_not_payable`, or `course_cancelled`); if the confirm wins, the cancel reports the new payment for refund.\n- Card payment is retired; bank transfer with a proof is the only way to pay.\n\nRequires a bearer token (any role).\n\nErrors (the `message` of the failure envelope):\n\n- `400` `booking_not_payable`: The booking is cancelled or expired.\n- `400` `payment_proof_required`: No proof image has been uploaded for the booking.\n- `400` `course_cancelled`: The course of the booking is cancelled.\n- `401` `not_authenticated`: Missing, invalid or expired access token.\n- `404` `booking_not_found`: No booking with this id belongs to the caller (someone else's booking and a malformed id count as unknown).",
         "parameters": [
           {
             "name": "id",
@@ -1310,7 +1310,7 @@
             }
           },
           "400": {
-            "description": "`booking_not_payable`, `payment_proof_required`",
+            "description": "`booking_not_payable`, `payment_proof_required`, `course_cancelled`",
             "content": {
               "application/json": {
                 "schema": {
