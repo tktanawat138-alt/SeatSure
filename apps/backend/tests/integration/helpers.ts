@@ -112,7 +112,7 @@ export async function mustBook(user: TestUser, courseId: string) {
   return data
 }
 
-/** Makes a hold look as if its 10 minutes ran out a minute ago. */
+/** Makes a hold look as if its 7 days ran out a minute ago. */
 export async function expireHold(bookingId: string) {
   const { error } = await admin
     .from('bookings')

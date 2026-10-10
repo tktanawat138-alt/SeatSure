@@ -87,7 +87,9 @@ jobs:
           (npm start --prefix ../apps/backend > ../api.log 2>&1 &)
           npx --yes wait-on -t 60000 http://localhost:3001/health
           npm run integration
-          pkill -f "tsx src/main.ts" || true
+      - name: Stop the API (e2e starts its own)
+        if: ${{ always() }}
+        run: pkill -f "tsx src/main.ts" || true
       # E2E still runs when integration tests fail, so each suite reports its own result.
       - name: Install Playwright browser
         if: ${{ !cancelled() && steps.backend.outcome == 'success' }}

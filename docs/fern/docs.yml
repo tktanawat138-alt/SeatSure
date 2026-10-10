@@ -16,6 +16,10 @@ navigation:
         path: pages/running-locally.mdx
       - page: Architecture
         path: pages/architecture.mdx
+      - page: System architecture
+        path: pages/system-architecture.mdx
+      - page: Sequence diagrams
+        path: pages/sequence-diagrams.mdx
       - page: Frontend
         path: pages/frontend.mdx
       - page: Backend
@@ -26,6 +30,15 @@ navigation:
         path: pages/api-conventions.mdx
       - page: Testing
         path: pages/testing.mdx
+      - page: Test catalog - backend
+        path: pages/test-catalog-backend.mdx
+      - page: Test catalog - frontend
+        path: pages/test-catalog-frontend.mdx
+      - page: Test catalog - project
+        path: pages/test-catalog-project.mdx
+      - page: CI/CD, SonarQube and Cloudflare
+        path: pages/ci-cd.mdx
+        slug: ci-cd
       - page: Notes
         path: pages/notes-index.mdx
   - api: API reference
