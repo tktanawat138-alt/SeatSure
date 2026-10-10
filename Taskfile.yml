@@ -71,6 +71,25 @@ tasks:
       - npx playwright install chromium
       - npm run e2e
 
+  test:ui:frontend:
+    desc: Vitest UI for the frontend unit + integration tests (https://vitest.dev/guide/ui)
+    dir: apps/frontend
+    deps: [frontend:install]
+    cmds:
+      - npm run test:ui
+
+  test:ui:backend:
+    desc: Vitest UI for the backend unit + integration tests (integration needs task up)
+    dir: apps/backend
+    cmds:
+      - npm run test:ui
+
+  test:ui:cross:
+    desc: Vitest UI for the cross-app integration tests in /tests (needs task up)
+    dir: tests
+    cmds:
+      - npm run integration:ui
+
   backend:up:
     desc: Start local Supabase, write apps/frontend/.env.local, seed sample data
     dir: apps/backend

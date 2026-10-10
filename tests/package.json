@@ -5,10 +5,12 @@
   "type": "module",
   "scripts": {
     "e2e": "playwright test",
-    "integration": "vitest run"
+    "integration": "vitest run",
+    "integration:ui": "vitest --ui"
   },
   "devDependencies": {
     "@playwright/test": "^1.64.0",
+    "@vitest/ui": "^5.0.3",
     "vitest": "^5.0.3"
   }
 }

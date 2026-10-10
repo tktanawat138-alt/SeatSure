@@ -97,7 +97,7 @@ Dependencies point inwards. A layer may import only the layers listed in "May im
 | `tests/integration/` | Integration, cross-app | frontend adaptors against the real backend: shapes and error codes the UI relies on | `task test:integration:cross` |
 | `tests/e2e/` | E2E | browser through the running app, Playwright is the core service (`tests/playwright.config.ts`) | `task test:e2e` |
 
-- `task test` runs every level. Each folder has its own `package.json`/vitest config.
+- `task test` runs every level. Vitest UI (https://vitest.dev/guide/ui): `task test:ui:frontend`, `task test:ui:backend`, `task test:ui:cross` (`@vitest/ui`, `vitest --ui` in each package). Each folder has its own `package.json`/vitest config.
 - Rule for "integration": inside an app = that app plus one real dependency. At the root = two apps wired together. Do not re-test backend rules at the root; test only the contract the frontend depends on.
 - Mirror the layer: a use case test goes in `apps/frontend/tests/unit/use-cases/`.
 - Write the failing test first (TDD), then the code.
